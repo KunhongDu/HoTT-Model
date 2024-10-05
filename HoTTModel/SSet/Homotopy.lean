@@ -488,7 +488,7 @@ lemma fixed.mul₀_spec [KanComplex X] (x y : fixed (n + 1) X v) (i):
             else Δ[n + 1].toΔ0 ≫ v) := by
   simp only [mul₀, horn.HomMk_spec', horn.face'.hom]
 
-noncomputable def fixed.mul₁ [KanComplex X] (x y : fixed (n + 1) X v) :
+def fixed.mul₁ [KanComplex X] (x y : fixed (n + 1) X v) :
     Δ[n + 2] ⟶ X := choose (KanComplex.hornFilling $ mul₀ x y)
 
 def fixed.mul₁_spec [KanComplex X] (x y : fixed (n + 1) X v) :
@@ -540,42 +540,46 @@ lemma fixed.mul₁_spec'_eq_or_of_neq [KanComplex X] (x y : fixed (n + 1) X v) {
   split_ifs
   <;> simp
 
-noncomputable def fixed.mul₂ [KanComplex X] (x y : fixed (n + 1) X v) :
-    Δ[n + 1] ⟶ X := standardSimplex.map (δ ⟨n, by linarith⟩) ≫ fixed.mul₁ x y
-
 def fixed.mulOfHornFilling [KanComplex X] {x y : fixed (n + 1) X v}
   (f : Δ[n + 2] ⟶ X) (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f) :
     fixed (n + 1) X v :=
-  ⟨standardSimplex.map (δ ⟨n, by linarith⟩) ≫ f, by
+  ⟨standardSimplex.map (δ ⟨n + 1, by linarith⟩) ≫ f, by
     rw [fixed.mem_iff]
     intro j
-    rcases fixed.mul₁_spec'_eq_or_of_neq_aux _ _ (i := ⟨n, by linarith⟩) _ hf (by simp)
-      with (h | (h | h))
-    repeat' rw [h, fixed.δ_comp_eq]
-    rw [h, ← Category.assoc]; congr 1⟩
+    rw [← Category.assoc, ← Functor.map_comp]
+    rcases eq_or_ne j.val (n + 1) with h | h
+    . rw [SimplexCategory.δ_comp_δ_self' (by simp [← val_eq_val, eq_comm]; exact h)]; simp
+      rcases fixed.mul₁_spec'_eq_or_of_neq_aux _ _ (i := j.succ) _ hf (by simp [h])
+        with (h | (h | h))
+      repeat' rw [h, fixed.δ_comp_eq]
+      rw [h, ← Category.assoc]; congr 1
+    . rw [SimplexCategory.δ_comp_δ' (Fin.val_lt_last (by rwa [ne_eq, ← val_eq_val]))]; simp
+      rcases fixed.mul₁_spec'_eq_or_of_neq_aux _ _ (i := j.castSucc) _ hf (by simp [h])
+        with (h | (h | h))
+      repeat' rw [h, fixed.δ_comp_eq]
+      rw [h, ← Category.assoc]; congr 1
+    ⟩
 
 def fixed.mul [KanComplex X] (x y : fixed (n + 1) X v) : fixed (n + 1) X v :=
-  ⟨fixed.mul₂ x y, by
-    rw [fixed.mem_iff]
-    intro j
-    dsimp [fixed.mul₂]
-    rcases fixed.mul₁_spec'_eq_or_of_neq x y (i := ⟨n, by linarith⟩) (by simp) with (h | (h | h))
-    repeat' rw [h, fixed.δ_comp_eq]
-    rw [h, ← Category.assoc]; congr 1⟩
+  fixed.mulOfHornFilling (fixed.mul₁ x y) (fixed.mul₁_spec _ _)
+
+lemma fixed.mulOfHornFilling_unique_up_to_equiv [KanComplex X] {x x' y y': fixed (n + 1) X v}
+  (hx : x ≈ x') (hy : y ≈ y') (f f' : Δ[n + 2] ⟶ X)
+  (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f)
+  (hf' : mul₀ x' y' = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f'):
+    fixed.mulOfHornFilling f hf ≈ fixed.mulOfHornFilling f' hf' := by
+  sorry
+
+lemma fixed.mul_unique_up_to_equiv_of_equiv [KanComplex X] {x x' y y': fixed (n + 1) X v}
+  (hx : x ≈ x') (hy : y ≈ y') :
+    fixed.mul x y ≈ fixed.mul x' y' :=
+  fixed.mulOfHornFilling_unique_up_to_equiv hx hy _ _ _ _
 
 -- this one is hard!!!
 lemma fixed.mul_unique_up_to_equiv [KanComplex X] (x y : fixed (n + 1) X v)
   (f : Δ[n + 2] ⟶ X) (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f) :
-    fixed.mul x y ≈ fixed.mulOfHornFilling f hf := by
-  sorry
-
-lemma fixed.mulOfHornFilling_unique_up_to_equiv [KanComplex X] (x x' y y': fixed (n + 1) X v)
-  (hx : x ≈ x') (hy : y ≈ y') (f f' : Δ[n + 2] ⟶ X)
-  (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f)
-  (hf' : mul₀ x' y' = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f'):
-    fixed.mulOfHornFilling f' hf' ≈ fixed.mulOfHornFilling f hf := by
-  sorry
-
+    fixed.mul x y ≈ fixed.mulOfHornFilling f hf :=
+  fixed.mulOfHornFilling_unique_up_to_equiv (Setoid.refl _) (Setoid.refl _) _ _ _ _
 
 instance fixed.inst_mul : {n : ℕ} → [NeZero n] → {X : SSet}→ [KanComplex X] → {v : Δ[0] ⟶ X} →
     Mul (fixed n X v)
@@ -585,7 +589,7 @@ instance fixed.inst_mul : {n : ℕ} → [NeZero n] → {X : SSet}→ [KanComplex
 instance fixed.inst_one {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X} :
     One (fixed n X v) := ⟨⟨Δ[n].toΔ0 ≫ v, rfl⟩⟩
 
-lemma fixed.hahaha [KanComplex X] (x : fixed (n + 1) X v) :
+lemma fixed.mul₀_one [KanComplex X] (x : fixed (n + 1) X v) :
   mul₀ x 1 = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫
     (standardSimplex.map (σ ⟨n, by linarith⟩) ≫ x.val) := by
   apply horn.hom_ext'
@@ -607,9 +611,32 @@ lemma fixed.hahaha [KanComplex X] (x : fixed (n + 1) X v) :
     rw [succAbove_of_succ_le, this, δ_comp_σ_of_le]; simp
     rw [fixed.δ_comp_eq, ← Category.assoc]
     congr 1
-    simp [le_iff_val_le_val]; exact Nat.le_sub_one_of_lt aux
+    exact Nat.le_sub_one_of_lt aux
     simp [le_iff_val_le_val]; exact aux.le
 
+lemma fixed.one_mul₀ [KanComplex X] (x : fixed (n + 1) X v) :
+  mul₀ 1 x = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫
+    (standardSimplex.map (σ ⟨n + 1, by linarith⟩) ≫ x.val) := by
+  apply horn.hom_ext'
+  intro j hj
+  obtain ⟨i, hi⟩ := exists_succAbove_eq_iff.mpr hj
+  cases hi
+  rw [← Category.assoc, horn.face'.hom_comp_boundaryInclusion, fixed.mul₀_spec,
+      ← Category.assoc, ← Functor.map_comp]
+  have : (⟨n + 1, by linarith⟩ : Fin (n + 2)) = ((⟨n + 1, by linarith⟩ : Fin (n + 2)).pred sorry).succ :=
+      sorry
+  split_ifs with h h'
+  . rw [succAbove_of_succ_le, this, δ_comp_σ_of_le]; simp
+    rw [fixed.δ_comp_eq, ← Category.assoc]
+    congr 1
+    repeat' simp [le_iff_val_le_val, h]
+  . rw [δ_comp_σ_succ', CategoryTheory.Functor.map_id, Category.id_comp]
+    simp [← h']; rw [succAbove_of_le_castSucc _ _ (by simp [le_iff_val_le_val])]
+  . have aux : i.val < n := sorry
+    rw [succAbove_of_succ_le, this, δ_comp_σ_of_le]; simp
+    rw [fixed.δ_comp_eq, ← Category.assoc]
+    congr 1
+    repeat' simp [le_iff_val_le_val]; exact aux.le
 
 def HomotopyGroup (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) : Type _ :=
   Quotient (fixed.setoid n X v)
@@ -665,7 +692,20 @@ lemma mul_assoc :
 
 lemma one_mul :
     ∀ (a : HomotopyGroup n X v), 1 * a = a := by
-  sorry
+  cases n
+  . apply False.elim; rwa [← neZero_zero_iff_false (α := ℕ)] -- this is bad!!!
+  . apply Quotient.ind
+    rename ℕ => n
+    intro a
+    change ⟦1 * a⟧ = ⟦a⟧
+    simp only [Quotient.eq]
+    apply Setoid.trans (fixed.mul_unique_up_to_equiv _ _ _ (fixed.one_mul₀ a))
+    convert Setoid.refl _
+    ext : 1
+    dsimp [fixed.mulOfHornFilling]
+    rw [← Category.assoc, ← Functor.map_comp, δ_comp_σ_self',
+        CategoryTheory.Functor.map_id, Category.id_comp]
+    simp only [castSucc_mk]
 
 lemma mul_one :
     ∀ (a : HomotopyGroup n X v), a * 1 = a := by
@@ -676,12 +716,13 @@ lemma mul_one :
     intro a
     change ⟦a * 1⟧ = ⟦a⟧
     simp only [Quotient.eq]
-    apply Setoid.trans (fixed.mul_unique_up_to_equiv _ _ _ (fixed.hahaha a))
+    apply Setoid.trans (fixed.mul_unique_up_to_equiv _ _ _ (fixed.mul₀_one a))
     convert Setoid.refl _
     ext : 1
     dsimp [fixed.mulOfHornFilling]
-    rw [← Category.assoc, ← Functor.map_comp, δ_comp_σ_self' (by simp [← val_eq_val]),
+    rw [← Category.assoc, ← Functor.map_comp, δ_comp_σ_succ',
         CategoryTheory.Functor.map_id, Category.id_comp]
+    simp only [succ_mk, Nat.succ_eq_add_one]
 
 instance inst_group : Group (HomotopyGroup n X v) where
   mul_assoc := mul_assoc
