@@ -72,9 +72,6 @@ def FibrewiseHomotopicRel (f g : X ⟶ Y) (p : Y ⟶ Z) (i : Z ⟶ X): Prop :=
 -/
 
 -- basic property of homotopy
-variable {X Y : SSet}
-
-
 -- No use at all
 
 def Homotopy.Refl (f : X ⟶ Y) : f ≃ f where
@@ -463,6 +460,8 @@ instance fixed.setoid (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] 
 instance fixed.hasEquiv (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) :
     HasEquiv (fixed n X v) := instHasEquivOfSetoid
 
+section multiplication
+
 noncomputable def fixed.mul₀ [KanComplex X] (x y : fixed (n + 1) X v) :
     Λ[n + 2, ⟨n + 1, by linarith⟩] ⟶ X := by
   apply horn.HomMk' ?_ _ _
@@ -563,6 +562,7 @@ def fixed.mulOfHornFilling [KanComplex X] {x y : fixed (n + 1) X v}
 def fixed.mul [KanComplex X] (x y : fixed (n + 1) X v) : fixed (n + 1) X v :=
   fixed.mulOfHornFilling (fixed.mul₁ x y) (fixed.mul₁_spec _ _)
 
+-- this one is hard!!!
 lemma fixed.mulOfHornFilling_unique_up_to_equiv [KanComplex X] {x x' y y': fixed (n + 1) X v}
   (hx : x ≈ x') (hy : y ≈ y') (f f' : Δ[n + 2] ⟶ X)
   (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f)
@@ -575,7 +575,6 @@ lemma fixed.mul_unique_up_to_equiv_of_equiv [KanComplex X] {x x' y y': fixed (n 
     fixed.mul x y ≈ fixed.mul x' y' :=
   fixed.mulOfHornFilling_unique_up_to_equiv hx hy _ _ _ _
 
--- this one is hard!!!
 lemma fixed.mul_unique_up_to_equiv [KanComplex X] (x y : fixed (n + 1) X v)
   (f : Δ[n + 2] ⟶ X) (hf : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫ f) :
     fixed.mul x y ≈ fixed.mulOfHornFilling f hf :=
@@ -585,6 +584,13 @@ instance fixed.inst_mul : {n : ℕ} → [NeZero n] → {X : SSet}→ [KanComplex
     Mul (fixed n X v)
 | 0, h, _, _, _ => by simp at h
 | n + 1, _, _, _, _ => ⟨fixed.mul⟩
+
+lemma fixed.mul_sound {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X}
+  {x x' y y' : fixed n X v} :
+    x ≈ x' → y ≈ y' → x * y ≈ x' * y' := by
+  cases n with
+  | zero => apply False.elim; rwa [← neZero_zero_iff_false (α := ℕ)]
+  | succ n => apply fixed.mul_unique_up_to_equiv_of_equiv
 
 instance fixed.inst_one {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X} :
     One (fixed n X v) := ⟨⟨Δ[n].toΔ0 ≫ v, rfl⟩⟩
@@ -638,6 +644,99 @@ lemma fixed.one_mul₀ [KanComplex X] (x : fixed (n + 1) X v) :
     congr 1
     repeat' simp [le_iff_val_le_val]; exact aux.le
 
+end multiplication
+
+section inverse
+
+variable {n : ℕ} {X : SSet} {v : Δ[0] ⟶ X} (x : fixed (n + 1) X v)
+
+def fixed.inv₀ : Λ[n + 2, last _] ⟶ X := by
+  apply horn.HomMk' ?_ _ _
+  exact fun i ↦ if i.val = n then x.val else Δ[n + 1].toΔ0 ≫ v
+  intro i j hij
+  split_ifs with h h'
+  repeat' exact fixed.δ_comp_eq_δ_comp _ _ _ _
+  repeat' rw [fixed.δ_comp_eq, ← Category.assoc]; congr 1
+  rw [← Category.assoc, ← Category.assoc]; congr 1
+
+lemma fixed.inv₀_spec (i : Fin (n + 2)):
+    (horn.face'.hom _ _ (succAbove_ne _ i)) ≫ fixed.inv₀ x
+      = if i.val = n then x.val else Δ[n + 1].toΔ0 ≫ v := by
+  simp only [inv₀, horn.HomMk_spec', horn.face'.hom]
+
+variable [KanComplex X] -- how to put this variable before the others???
+def fixed.inv₁ : Δ[n + 2] ⟶ X :=
+  choose (KanComplex.hornFilling (inv₀ x))
+
+lemma fixed.inv₁_spec :
+    inv₀ x = hornInclusion (n + 2) (last (n + 2)) ≫ inv₁ x :=
+  choose_spec (KanComplex.hornFilling (inv₀ x))
+
+lemma fixed.inv₁_spec' (i : Fin (n + 2)) :
+    standardSimplex.map (SimplexCategory.δ i.castSucc) ≫ inv₁ x =
+      if i.val = n then x.val else Δ[n + 1].toΔ0 ≫ v
+    := by
+  rw [← horn.face'.hom_comp_boundaryInclusion (h := (castSucc_lt_last  _).ne),
+      Category.assoc, ← inv₁_spec]
+  convert fixed.inv₀_spec x i using 3
+  simp only [succAbove_last]
+
+lemma fixed.inv₁_spec'_eq_or_of_neq (i : Fin (n + 2)) :
+    standardSimplex.map (SimplexCategory.δ i.castSucc) ≫ fixed.inv₁ x = x.val ∨
+    standardSimplex.map (SimplexCategory.δ i.castSucc) ≫ fixed.inv₁ x = Δ[n + 1].toΔ0 ≫ v := by
+  rw [fixed.inv₁_spec']
+  split_ifs
+  <;> simp
+
+def fixed.inv₂ : Δ[n + 1] ⟶ X := standardSimplex.map (δ (last _)) ≫ inv₁ x
+
+def fixed.inv {n : ℕ} {X : SSet} [X.KanComplex] {v : Δ[0] ⟶ X} (x : fixed (n + 1) X v) :
+    fixed (n + 1) X v :=
+  ⟨fixed.inv₂ x, by
+    rw [fixed.mem_iff]
+    intro j; dsimp [inv₂]
+    rw [← Category.assoc, ← Functor.map_comp, δ_comp_δ' (castSucc_lt_last _)]; simp
+    rcases fixed.inv₁_spec'_eq_or_of_neq x j with hj | hj
+    . rw [hj, fixed.δ_comp_eq x]
+    . rw [hj, ← Category.assoc]; congr 1⟩
+
+instance fixed.inst_inv : {n : ℕ} → [NeZero n] → {X : SSet}→ [KanComplex X] → {v : Δ[0] ⟶ X} →
+    Inv (fixed n X v)
+| 0, h, _, _, _ => by simp at h
+| n + 1, _, _, _, _ => ⟨fixed.inv⟩
+
+lemma mul_inv_cancel_aux₁ {n : ℕ} {X : SSet} [X.KanComplex] {v : Δ[0] ⟶ X} (x : fixed (n + 1) X v) :
+    fixed.mul₀ x x⁻¹ = hornInclusion (n + 2) ⟨n + 1, by linarith⟩ ≫ fixed.inv₁ x := by
+  apply horn.hom_ext'
+  intro j h
+  obtain ⟨j, hj⟩ := exists_succAbove_eq_iff.mpr h
+  cases hj
+  rw [← Category.assoc, horn.face'.hom_comp_boundaryInclusion, fixed.mul₀_spec]
+  split_ifs with h h'
+  . rw [succAbove_of_castSucc_lt _ _ (by simp [lt_iff_val_lt_val, h]), fixed.inv₁_spec']; simp [h]
+  . rw [succAbove_of_lt_succ _ _ (by simp [lt_iff_val_lt_val, h'])]
+    have : j.succ = last _ := by rw [← val_eq_val]; simpa
+    rw [this]; rfl
+  . rw [succAbove_of_castSucc_lt, fixed.inv₁_spec']; simp [h]
+    exact (Nat.lt_succ.mp j.2).lt_of_ne h'
+
+lemma mul_inv_cancel_aux₂ {n : ℕ} {X : SSet} [X.KanComplex] {v : Δ[0] ⟶ X}
+  (x : fixed (n + 1) X v) :
+    fixed.mulOfHornFilling (x := x) (y := x⁻¹) (fixed.inv₁ x) (mul_inv_cancel_aux₁ _) = 1 := by
+  ext : 1
+  dsimp [fixed.mulOfHornFilling]
+  have : (⟨n + 1, by linarith⟩ : Fin (n + 3)) = (⟨n + 1, by linarith⟩ : Fin (n + 2)).castSucc := by
+    simp only [castSucc_mk]
+  rw [this, fixed.inv₁_spec']
+  simp only [add_right_eq_self]; rfl
+
+lemma mul_inv_cancel {n : ℕ} {X : SSet} [X.KanComplex] {v : Δ[0] ⟶ X} (x : fixed (n + 1) X v) :
+    x * x⁻¹ ≈ 1 := by
+  rw [← mul_inv_cancel_aux₂]
+  apply fixed.mul_unique_up_to_equiv
+
+end inverse
+
 def HomotopyGroup (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) : Type _ :=
   Quotient (fixed.setoid n X v)
 
@@ -655,22 +754,22 @@ instance : Inhabited (HomotopyGroup n X v) := ⟨by
   rw [← Category.assoc]; congr
   ⟩
 
-variable {n X v} in
-lemma mul_sound {x x' y y' : fixed n X v} :
-    x ≈ x' → y ≈ y' → x * y ≈ x' * y' := by
-  sorry
-
+section multiplication
 def mul_right (x : fixed n X v) :
   (HomotopyGroup n X v) → (HomotopyGroup n X v) :=
     Quotient.lift (fun y ↦ Quotient.mk' (x * y))
-      (fun _ _ h ↦ Quotient.sound (mul_sound (Setoid.refl _) h))
+      (fun _ _ h ↦ Quotient.sound (fixed.mul_sound (Setoid.refl _) h))
 
 def mul :
     (HomotopyGroup n X v) → (HomotopyGroup n X v) → (HomotopyGroup n X v) := by
   apply Quotient.lift (mul_right n X v)
   intro _ _ hab; dsimp [mul_right]
   congr! 1; funext _
-  apply Quotient.sound (mul_sound hab (Setoid.refl _))
+  apply Quotient.sound (fixed.mul_sound hab (Setoid.refl _))
+
+def inv : HomotopyGroup n X v → HomotopyGroup n X v := by
+  apply Quotient.lift (fun x ↦ Quotient.mk' x⁻¹)
+    sorry
 
 variable {n X v}
 instance inst_mul :
@@ -683,8 +782,10 @@ instance inst_mul' :
 instance inst_one :
     One (HomotopyGroup n X v) := ⟨Quotient.mk' 1⟩
 
+instance inst_inv : Inv (HomotopyGroup n X v) := ⟨inv n X v⟩
+
 lemma mul_def (a b : fixed n X v) :
-    (⟦a * b⟧ : HomotopyGroup n X v) = ⟦a⟧ * ⟦b⟧ :=rfl
+    (⟦a * b⟧ : HomotopyGroup n X v) = ⟦a⟧ * ⟦b⟧ := rfl
 
 lemma mul_assoc :
     ∀ (a b c : HomotopyGroup n X v), a * b * c = a * (b * c) := by
@@ -724,17 +825,30 @@ lemma mul_one :
         CategoryTheory.Functor.map_id, Category.id_comp]
     simp only [succ_mk, Nat.succ_eq_add_one]
 
-instance inst_group : Group (HomotopyGroup n X v) where
+lemma mul_inv_cancel :
+    ∀ (a : HomotopyGroup n X v), a * a⁻¹ = 1 := by
+  cases n
+  . apply False.elim; rwa [← neZero_zero_iff_false (α := ℕ)] -- this is bad!!!
+  . apply Quotient.ind
+    rename ℕ => n
+    intro a
+    change ⟦a * a⁻¹⟧ = ⟦1⟧
+    simp only [Quotient.eq]
+    apply mul_inv_cancel
+
+instance inst_monoid : Monoid (HomotopyGroup n X v) where
   mul_assoc := mul_assoc
   one_mul := one_mul
   mul_one := mul_one
-  inv := sorry
-  inv_mul_cancel := sorry
 
+instance inst_group : Group (HomotopyGroup n X v) where
+  inv_mul_cancel := by
+    intro a
+    have h₁ : a⁻¹* (a⁻¹)⁻¹ = 1 := mul_inv_cancel _
+    have h₂ : a = (a⁻¹)⁻¹ := left_inv_eq_right_inv (mul_inv_cancel _) h₁
+    rw [← h₁, ← h₂]
 
-
-
-
+end multiplication
 
 
 end HomotopyGroup
