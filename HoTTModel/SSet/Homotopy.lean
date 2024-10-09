@@ -580,10 +580,65 @@ lemma fixed.mul_unique_up_to_equiv [KanComplex X] (x y : fixed (n + 1) X v)
     fixed.mul x y ≈ fixed.mulOfHornFilling f hf :=
   fixed.mulOfHornFilling_unique_up_to_equiv (Setoid.refl _) (Setoid.refl _) _ _ _ _
 
-instance fixed.inst_mul : {n : ℕ} → [NeZero n] → {X : SSet}→ [KanComplex X] → {v : Δ[0] ⟶ X} →
+instance fixed.inst_mul : {n : ℕ} → [NeZero n] → {X : SSet} → [KanComplex X] → {v : Δ[0] ⟶ X} →
     Mul (fixed n X v)
 | 0, h, _, _, _ => by simp at h
 | n + 1, _, _, _, _ => ⟨fixed.mul⟩
+
+lemma aux_fin_succAbove_iff (n k : ℕ) (j : Fin (n + k + 1)):
+    ((⟨n + 1, by linarith⟩ : Fin (n + k + 2)).succAbove j).val = n ↔ ↑j = n:= by
+  change _ = (⟨n, by linarith⟩ : Fin (n + k + 2)).val ↔
+    _ = (⟨n, by linarith⟩ : Fin (n + k + 1)).val
+  rw [val_eq_val, val_eq_val]
+  have (n k) : ((⟨n + 1, by linarith⟩ : Fin (n + k + 2)).succAbove ⟨n, by linarith⟩)
+    = ⟨n, by linarith⟩ := by
+      rw [succAbove_of_castSucc_lt _ _ (by simp [lt_iff_val_lt_val])]; simp
+  constructor
+  intro h; rw [← this] at h; apply succAbove_right_injective h
+  intro h; rw [h, this]
+
+lemma aux_fin_succAbove_iff' (n k : ℕ) (j : Fin (n + k + 2)):
+    ((⟨n + 1, by linarith⟩ : Fin (n + k + 3)).succAbove j).val = n + 2 ↔ ↑j = n + 1:= by
+  change _ = (⟨n + 2, by linarith⟩ : Fin (n + k + 3)).val ↔
+    _ = (⟨n + 1, by linarith⟩ : Fin (n + k + 2)).val
+  rw [val_eq_val, val_eq_val]
+  have (n k) : ((⟨n + 1, by linarith⟩ : Fin (n + k + 3)).succAbove ⟨n + 1, by linarith⟩)
+    = ⟨n + 2, by linarith⟩ := by
+      rw [succAbove_of_lt_succ _ _ (by simp [lt_iff_val_lt_val])]; simp
+  constructor
+  intro h; rw [← this] at h; apply succAbove_right_injective h
+  intro h; rw [h, this]
+
+lemma fixed.mul_equiv_iff [KanComplex X] (x y z : fixed (n + 1) X v) :
+    x * y ≈ z ↔ ∃ w : Δ[n + 2] ⟶ X, ∀ j, standardSimplex.map (δ j) ≫ w =
+      if j.val = n then x.val
+        else (if j.val = n + 1 then z.val
+          else if j.val = n + 2 then y.val
+            else Δ[n + 1].toΔ0 ≫ v) := by
+  constructor
+  . sorry
+  . intro ⟨w, hw⟩
+    have : mul₀ x y = hornInclusion (n + 2) ⟨n + 1, by linarith⟩ ≫ w := by
+      apply horn.hom_ext'
+      intro j hj
+      obtain ⟨j, hj⟩ := exists_succAbove_eq_iff.mpr hj
+      cases hj
+      rw [mul₀_spec, ← Category.assoc, horn.face'.hom_comp_boundaryInclusion, hw]
+      have : (((⟨n + 1, by linarith⟩ : Fin (n + 3)).succAbove j).val = n + 1) ↔ False :=
+        ⟨by simp [← val_eq_val] at hj; exact hj, False.elim⟩
+      simp only [this, ↓reduceIte]
+      congr 1
+      . simp [aux_fin_succAbove_iff]
+      . congr 1
+        simp [aux_fin_succAbove_iff' n 0]
+    have : z = fixed.mulOfHornFilling (x := x) (y := y) w this := by
+      ext : 1
+      dsimp [mulOfHornFilling]
+      convert (hw ⟨n + 1, by linarith⟩).symm
+      simp only [add_right_eq_self, one_ne_zero, ↓reduceIte]
+    rw [this]
+    apply fixed.mul_unique_up_to_equiv
+
 
 lemma fixed.mul_sound {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X}
   {x x' y y' : fixed n X v} :
@@ -594,6 +649,11 @@ lemma fixed.mul_sound {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] 
 
 instance fixed.inst_one {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X} :
     One (fixed n X v) := ⟨⟨Δ[n].toΔ0 ≫ v, rfl⟩⟩
+
+lemma fixed.equiv_one_iff [KanComplex X] (x : fixed (n + 1) X v) :
+  x ≈ 1 ↔ ∃ w : Δ[n + 2] ⟶ X, ∀ j, standardSimplex.map (δ j) ≫ w =
+    if j = last _ then x.val else Δ[n + 1].toΔ0 ≫ v := sorry
+  -- maybe it would be nice to name Δ[n + 1].toΔ0 ≫ v something like a 1?
 
 lemma fixed.mul₀_one [KanComplex X] (x : fixed (n + 1) X v) :
   mul₀ x 1 = hornInclusion (n + 2) ⟨n + 1, _⟩ ≫
@@ -850,8 +910,37 @@ instance inst_group : Group (HomotopyGroup n X v) where
 
 end multiplication
 
-
 end HomotopyGroup
+
+section functor
+
+variable (n : ℕ) [NeZero n] {X Y : SSet} [KanComplex X] [KanComplex Y]
+  (f : X ⟶ Y) {x : Δ[0] ⟶ X} {y : Δ[0] ⟶ Y} (hf : x ≫ f = y)
+
+def HomotopyGroup.map_toFun₀ : fixed n X x → HomotopyGroup n Y y := by
+  match n with
+  | 0 => sorry
+  | succ n =>
+      intro ⟨a, ha⟩
+      apply Quotient.mk'
+      use a ≫ f
+      rw [fixed.mem_iff] at ha ⊢
+      intro j
+      rw [← Category.assoc, ha, Category.assoc, hf]
+
+def HomotopyGroup.map : HomotopyGroup n X x →* HomotopyGroup n Y y where
+  toFun := by
+    apply Quotient.lift (HomotopyGroup.map_toFun₀ )
+
+
+  map_one' := _
+  map_mul' := _
+
+
+
+
+end functor
+
 end SimplicialHomotopyGroup
 
 
