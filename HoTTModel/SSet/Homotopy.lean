@@ -126,8 +126,7 @@ lemma vertice_homotopic_iff_exist_edge' {S : SSet} (x y : Δ[0] ⟶ S) :
   . rintro ⟨v, ⟨h₁, h₂⟩⟩
     use (yonedaEquiv _ _).symm v
     constructor
-    <;> apply_fun S.yonedaEquiv _
-    <;> assumption
+    all_goals apply_fun S.yonedaEquiv _; assumption
 
 lemma aux_fin2' (i : Fin 2) :
      i = 0 ∨ i = 1 := by
@@ -463,7 +462,7 @@ instance fixed.hasEquiv (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0
 section multiplication
 
 noncomputable def fixed.mul₀ [KanComplex X] (x y : fixed (n + 1) X v) :
-    Λ[n + 2, ⟨n + 1, by linarith⟩] ⟶ X := by
+    Λ[n + 2, ⟨n + 1, by omega⟩] ⟶ X := by
   apply horn.HomMk' ?_ _ _
   exact fun i ↦ if i.val = n then x.val
     else (if i.val = n + 1 then y.val
@@ -605,9 +604,9 @@ lemma aux_fin_succAbove_iff' (n k : ℕ) (j : Fin (n + k + 2)):
   have (n k) : ((⟨n + 1, by linarith⟩ : Fin (n + k + 3)).succAbove ⟨n + 1, by linarith⟩)
     = ⟨n + 2, by linarith⟩ := by
       rw [succAbove_of_lt_succ _ _ (by simp [lt_iff_val_lt_val])]; simp
-  constructor
-  intro h; rw [← this] at h; apply succAbove_right_injective h
-  intro h; rw [h, this]
+  rw [← this]
+  apply succAbove_right_injective.eq_iff
+
 
 lemma fixed.mul_equiv_iff [KanComplex X] (x y z : fixed (n + 1) X v) :
     x * y ≈ z ↔ ∃ w : Δ[n + 2] ⟶ X, ∀ j, standardSimplex.map (δ j) ≫ w =
@@ -918,8 +917,8 @@ variable (n : ℕ) [NeZero n] {X Y : SSet} [KanComplex X] [KanComplex Y]
   (f : X ⟶ Y) {x : Δ[0] ⟶ X} {y : Δ[0] ⟶ Y} (hf : x ≫ f = y)
 
 def HomotopyGroup.map_toFun₀ : fixed n X x → HomotopyGroup n Y y := by
-  match n with
-  | 0 => sorry
+  cases n with
+  | zero => sorry
   | succ n =>
       intro ⟨a, ha⟩
       apply Quotient.mk'
@@ -930,7 +929,7 @@ def HomotopyGroup.map_toFun₀ : fixed n X x → HomotopyGroup n Y y := by
 
 def HomotopyGroup.map : HomotopyGroup n X x →* HomotopyGroup n Y y where
   toFun := by
-    apply Quotient.lift (HomotopyGroup.map_toFun₀ )
+    apply Quotient.lift (HomotopyGroup.map_toFun₀ _)
 
 
   map_one' := _

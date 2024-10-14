@@ -1,4 +1,4 @@
-import Mathlib.AlgebraicTopology.Quasicategory
+import Mathlib.AlgebraicTopology.SimplicialSet.Quasicategory
 import HoTTModel.Lemmas.Limits
 
 section
@@ -170,4 +170,25 @@ lemma asOrderHom_objMk (x : Fin (n + 1) →o Fin (m + 1)) : asOrderHom (objMk x)
 
 end
 
+noncomputable section evalution
+universe u v w
+-- for the sake of simplcity, Assume `J : Type 0`... Can't figure out the universe contraints
+variable {J : Type 0} [Category.{v} J] (F : J ⥤ SSet.{u})
+
+abbrev ev' (k : SimplexCategoryᵒᵖ) : SSet.{u} ⥤ Type u :=
+  (evaluation SimplexCategoryᵒᵖ (Type u)).obj k
+
+abbrev ev (k : ℕ) : SSet.{u} ⥤ Type u :=
+  ev' (op [k])
+
+instance instPreservesLimitsOfShapeEv' : PreservesLimitsOfShape J (ev'.{u} k) := by
+  dsimp [ev']
+  apply evaluationPreservesLimitsOfShape
+  -- infer instance fails???
+
+instance instPreservesLimitsOfShapeEv : PreservesLimitsOfShape J (ev.{u} k) := by
+  dsimp [ev]
+  infer_instance
+
+end evalution
 end SSet

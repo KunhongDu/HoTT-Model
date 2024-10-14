@@ -1,4 +1,3 @@
-import Mathlib.AlgebraicTopology.Quasicategory
 import HoTTModel.SSet.Lemmas
 
 

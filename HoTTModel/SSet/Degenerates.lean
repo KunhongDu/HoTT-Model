@@ -341,10 +341,8 @@ lemma hom_generator_ext {f g : X ⟶ Y} (G : X.Generator) (h : ∀ x ∈ G.carri
   have (h : X ⟶ Y) : (h ~ x) = Y.map φ (h ~ y.2) := by
     simp at hy₂
     rw [hy₂]
-    have this₁ : h ~ (X.map φ y.2) = (X.map φ ≫ h.app _) y.2 := rfl
-    have this₂ : Y.map φ (h ~ y.2) = (h.app _ ≫ Y.map φ) y.2 := rfl
-    -- need better api for natural trans lol
-    rw [this₁, this₂, h.naturality]
+    change (X.map φ ≫ h.app _) y.2 = (h.app _ ≫ Y.map φ) y.2
+    rw [h.naturality]
   rw [this, this, h _ (by apply hy₁)]
 
 -- `objMk OrderHom.id` connects to all the nondegenerates
