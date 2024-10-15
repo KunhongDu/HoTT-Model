@@ -1,4 +1,4 @@
-import Mathlib.AlgebraicTopology.SimplicialSet.Quasicategory
+import Mathlib.AlgebraicTopology.Quasicategory
 import HoTTModel.Lemmas.Limits
 
 section
@@ -59,7 +59,7 @@ lemma yonedaEquiv_symm_naturality' {X Y: SSet} (f : X ⟶ Y) (x : X _[n]) :
   simp only [Equiv.apply_symm_apply]
 
 lemma yonedaEquiv_symm_naturality'₂ {X Y: SSet} (f : X ⟶ Y) (x : X _[n]) :
-    (Y.yonedaEquiv _).symm (f.app _ x) =  ((X.yonedaEquiv _).symm x ≫ f) := by
+    (Y.yonedaEquiv _).symm (f.app _ x) = (X.yonedaEquiv _).symm x ≫ f := by
   apply (Y.yonedaEquiv _).injective
   simp only [Equiv.apply_symm_apply]
   apply yonedaEquiv_symm_naturality'

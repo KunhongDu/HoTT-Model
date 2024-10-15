@@ -59,11 +59,19 @@ instance pullback_snd {f : X ⟶ Z} {g : Y ⟶ Z} [KanFibration f] :
     KanFibration (pullback.snd f g) :=
   IsPullback_snd (IsPullback.of_hasPullback f g)
 
+lemma pullback_snd' {f : X ⟶ Z} {g : Y ⟶ Z} (_ : KanFibration f) :
+    KanFibration (pullback.snd f g) :=
+  IsPullback_snd (IsPullback.of_hasPullback f g)
+
 lemma IsPullback_fst {W X Y Z : SSet} {fst : W ⟶ X} {snd : W ⟶ Y}
   {f : X ⟶ Z} {g : Y ⟶ Z} (P : IsPullback fst snd f g) [KanFibration g] :
     KanFibration fst := ⟨(IsPullback_snd P.flip).lift⟩
 
 instance pullback_fst {f : X ⟶ Z} {g : Y ⟶ Z} [KanFibration g] :
+    KanFibration (pullback.fst f g) :=
+  IsPullback_fst (IsPullback.of_hasPullback f g)
+
+lemma pullback_fst' {f : X ⟶ Z} {g : Y ⟶ Z} (_ : KanFibration g) :
     KanFibration (pullback.fst f g) :=
   IsPullback_fst (IsPullback.of_hasPullback f g)
 
@@ -93,8 +101,26 @@ lemma comp (p : X ⟶ Y) [KanFibration p] (q : Y ⟶ Z) [KanFibration q] :
 lemma isIso_comp {X Y Z : SSet} (f : X ⟶ Y) [IsIso f] (g : Y ⟶ Z) [KanFibration g] :
     KanFibration (f ≫ g) := comp _ _
 
-lemma comp_isIso {X Y Z : SSet} (f : X ⟶ Y) [IsIso f] (g : Y ⟶ Z) [KanFibration g]:
+lemma comp_isIso {X Y Z : SSet} (f : X ⟶ Y) [KanFibration f] (g : Y ⟶ Z) [IsIso g]:
     KanFibration (f ≫ g) := comp _ _
+
+lemma isIso_comp' {X Y Z : SSet} (f : X ⟶ Y) [IsIso f] (g : Y ⟶ Z) (_ : KanFibration g) :
+    KanFibration (f ≫ g) := comp _ _
+
+lemma comp_isIso' {X Y Z : SSet} (f : X ⟶ Y) (_ : KanFibration f) (g : Y ⟶ Z) [IsIso g]:
+    KanFibration (f ≫ g) := comp _ _
+
+lemma of_isIso_comp {X Y Z : SSet} (f : X ⟶ Y) [IsIso f]
+  (g : Y ⟶ Z) (h : KanFibration (f ≫ g)) :
+    KanFibration g := by
+  rw [← Category.id_comp g, ← IsIso.inv_hom_id f, Category.assoc]
+  apply isIso_comp
+
+lemma of_comp_isIso {X Y Z : SSet} (f : X ⟶ Y)
+  (g : Y ⟶ Z)  [IsIso g] (h : KanFibration (f ≫ g)):
+    KanFibration f := by
+  rw [← Category.comp_id f, ← IsIso.hom_inv_id g, ← Category.assoc]
+  apply comp_isIso
 
 -- toDo, rw hg to Epi or sujective???
 lemma of_pullback_snd_KanFibration_of_surjective {W X Y Z : SSet} {fst : W ⟶ X} {snd : W ⟶ Y}

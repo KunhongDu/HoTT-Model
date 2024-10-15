@@ -132,7 +132,7 @@ def IsoTerminalProd : X ≅ t ⨯ X where
 end TerminalProd
 
 -- ⨯ is symmetic; has it been proved ???
-noncomputable section Pullback_comp
+noncomputable section PullbackRightComp
 
 open Limits
 
@@ -140,18 +140,40 @@ variable {X Y Z W : C} (f : X ⟶ Y) (g : Z ⟶ Y) (h : W ⟶ Z) [HasPullback f 
   [HasPullback f g] [HasPullback (pullback.snd f g) h]
 
 def pullback.rightCompIso :
-    pullback f (h ≫ g) ≅ pullback (pullback.snd f g) h := by
-  exact IsLimit.conePointUniqueUpToIso (limit.isLimit (cospan f (h ≫ g)))
+    pullback f (h ≫ g) ≅ pullback (snd f g) h :=
+  IsLimit.conePointUniqueUpToIso (limit.isLimit (cospan f (h ≫ g)))
     (pasteVertIsPullback (t₁ := pullback.cone f g) (t₂ := pullback.cone (pullback.snd f g) h)
       rfl (limit.isLimit _) (limit.isLimit _))
 
 lemma pullback.rightCompIso_hom_comp_snd :
-    (pullback.rightCompIso f g h).hom ≫ pullback.snd (pullback.snd f g) h = pullback.snd f (h ≫ g) :=
+    (rightCompIso f g h).hom ≫ snd (snd f g) h = snd f (h ≫ g) :=
   IsLimit.conePointUniqueUpToIso_hom_comp _ _ WalkingCospan.right
 
 lemma pullback.rightCompIso_hom_comp_fst :
-    (pullback.rightCompIso f g h).hom ≫ pullback.fst (pullback.snd f g) h ≫ pullback.fst f g =
-      pullback.fst f (h ≫ g) :=
+    (rightCompIso f g h).hom ≫ fst (snd f g) h ≫ fst f g = fst f (h ≫ g) :=
   IsLimit.conePointUniqueUpToIso_hom_comp _ _ WalkingCospan.left
 
-end Pullback_comp
+end PullbackRightComp
+
+noncomputable section PullbackLeftComp
+
+open Limits
+
+variable {X Y Z W : C} (f : X ⟶ Y) (g : Z ⟶ Y) (h : W ⟶ X) [HasPullback f g]
+  [HasPullback (h ≫ f) g] [HasPullback h (pullback.fst f g)]
+
+def pullback.leftCompIso :
+    pullback (h ≫ f) g ≅ pullback h (fst f g) :=
+  IsLimit.conePointUniqueUpToIso (limit.isLimit (cospan (h ≫ f) g))
+    (pasteHorizIsPullback (t₂ := pullback.cone f g) (t₁ := pullback.cone h (pullback.fst f g))
+      rfl (limit.isLimit _) (limit.isLimit _))
+
+lemma pullback.leftCompIso_hom_comp_fst :
+    (leftCompIso f g h).hom ≫ fst h (fst f g) = fst (h ≫ f) g :=
+  IsLimit.conePointUniqueUpToIso_hom_comp _ _ WalkingCospan.left
+
+lemma pullback.leftCompIso_hom_comp_snd :
+  (leftCompIso f g h).hom ≫ (snd h (fst f g)) ≫ snd f g = snd (h ≫ f) g :=
+  IsLimit.conePointUniqueUpToIso_hom_comp _ _ WalkingCospan.right
+
+end PullbackLeftComp
