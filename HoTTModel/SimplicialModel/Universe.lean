@@ -505,24 +505,24 @@ abbrev UniWOKan : U' α ⟶ₒ U α := (UniSmallWOKan α).wo
 
 variable {α}
 
-lemma aux''' {k : ℕ} (x : U α _[k]) :
-    x.val = (U.toW α).app _ x := by
+lemma U.toW.app_eq_val {k : ℕ} (x : U α _[k]) :
+    (U.toW α).app _ x = x.val := by
   simp only [U.toW, FunctorToTypes.hcomp, NatTrans.id_app', FunctorToTypes.map_id_apply]
   rfl
 
-lemma aux'' {k : ℕ} (σ : Δ[k] ⟶ U α):
+lemma U.toW.simplex_comp_eq_toHom_val {k : ℕ} (σ : Δ[k] ⟶ U α):
     σ ≫ U.toW α = toHom (((U α).yonedaEquiv [k]) σ).val := by
-  rw [aux''', yonedaEquiv_naturality', ← toObj.simplex, toHom_toObj]
+  rw [← app_eq_val, yonedaEquiv_naturality', ← toObj.simplex, toHom_toObj]
 
-lemma aux' {k : ℕ} (σ : Δ[k] ⟶ U α) :
+lemma U.toW.Kan_pullback_snd_simplex_comp {k : ℕ} (σ : Δ[k] ⟶ U α) :
     KanFibration (pullback.snd (UniWO α).hom (σ ≫ U.toW α)) := by
   have := (yonedaEquiv _ _ σ).property
-  rwa [Ω_obj.Kan_iff_pullback_snd_toHom_Kan, ← aux''] at this
+  rwa [Ω_obj.Kan_iff_pullback_snd_toHom_Kan, ← simplex_comp_eq_toHom_val] at this
 
-lemma aux : ∀ {k : ℕ} (σ : Δ[k] ⟶ U α),
+lemma U.Kan_pullback_snd_simplex : ∀ {k : ℕ} (σ : Δ[k] ⟶ U α),
     KanFibration (pullback.snd (UniWOKan α).hom σ) := by
   intro k σ
-  have := aux' σ
+  have := toW.Kan_pullback_snd_simplex_comp σ
   rw [← pullback.rightCompIso_hom_comp_snd] at this
   apply KanFibration.of_isIso_comp at this
   obtain ⟨h⟩ := UniSmallWOKan.equiv_smallWO_pullback (α := α)
@@ -533,7 +533,7 @@ lemma aux : ∀ {k : ℕ} (σ : Δ[k] ⟶ U α),
   apply KanFibration.isIso_comp -- Lean has the instance that pullback.snd of iso is iso
 
 instance UniWOKan.hom.KanFibration : KanFibration (UniWOKan α).hom :=
-  KanFibration.of_forall_pullback_snd_KanFibration aux
+  KanFibration.of_forall_pullback_snd_KanFibration U.Kan_pullback_snd_simplex
 
 instance UniWOKan.hom.KanFibration' :
     SSet.KanFibration (pullback.snd (UniSmallWO α).hom (U.toW α)) := by
@@ -549,14 +549,14 @@ lemma UniSmallWOKan₀.Kan : (UniSmallWOKan₀ α).Kan := by
   rw [← UniSmallWOKan.Ω_obj_mk, ← SmallWO.Kan_iff_Ω_obj_mk_Kan]
   exact UniSmallWOKan.Kan
 
-lemma aux₂ (f : Y ⟶ W α) :
+lemma factor_iff_forall_Kan (f : Y ⟶ W α) :
     (∃ φ, f = φ ≫ U.toW α) ↔ (∀ ⦃k⦄ (x : Y _[k]), (f.app _ x).Kan) := by
   constructor
   . intro ⟨φ, h⟩ k x
     rw [h, Ω_obj.Kan_iff_pullback_snd_toHom_Kan,
         yonedaEquiv_symm_naturality', ← toObj.simplex, toHom_toObj,
         ← Category.assoc, ← yonedaEquiv_symm_naturality'₂]
-    apply aux'
+    apply U.toW.Kan_pullback_snd_simplex_comp
   . intro h
     use {
       app := fun n y ↦ ⟨f.app _ y, h (k := n.unop.len) y⟩
@@ -569,11 +569,11 @@ lemma aux₂ (f : Y ⟶ W α) :
     ext n y; erw [NatTrans.vcomp_app]
     simp [U.toW, Υ.toΩ]
 
-lemma aux₂' (a : SmallWO α Y) :
+lemma SmallWO.Kan_iff_factor (a : SmallWO α Y) :
     a.Kan ↔ ∃ φ, toHom (Ω_obj.mk a)  = φ ≫ U.toW α := by
   rw [SmallWO.Kan_iff_Ω_obj_mk_Kan, Ω_obj.Kan_iff_pullback_snd_toHom_Kan]
   constructor
-  . rw [aux₂]; intro h k x
+  . rw [factor_iff_forall_Kan]; intro h k x
     rw [yonedaEquiv_symm_naturality', Ω_obj.Kan_iff_pullback_snd_toHom_Kan, ← toObj.simplex,
        toHom_toObj, ← pullback.rightCompIso_hom_comp_snd]
     apply KanFibration.isIso_comp' _ _ KanFibration.pullback_snd
@@ -581,11 +581,11 @@ lemma aux₂' (a : SmallWO α Y) :
     rw [h, ← pullback.rightCompIso_hom_comp_snd]
     apply KanFibration.isIso_comp' _ _ KanFibration.pullback_snd
 
-example : ∀ a : Ω_obj α Y, a.Kan ↔ ∃ φ, toHom a  = φ ≫ U.toW α := by
+lemma Ω_obj.Kan_iff_factor : ∀ a : Ω_obj α Y, a.Kan ↔ ∃ φ, toHom a  = φ ≫ U.toW α := by
   apply Shrink.rec
   apply Quotient.ind
   intro a
-  convert aux₂' a
+  convert a.Kan_iff_factor
   exact (SmallWO.Kan_iff_Ω_obj_mk_Kan _).symm
 
 
