@@ -350,11 +350,20 @@ def Ω.Corepresentable.app (X : SSet.{u}):
     (X ⟶ (W α)) ≃ (Ω α).obj (op X) :=
   Opposite.equivToOpposite.trans ((Ω.Corepresentable α).homEquiv (Y := op X))
 
+namespace Ω
 variable {X : SSet.{u}} {α}
 
 def toHom (a : (Ω α).obj (op X)) : X ⟶ W α := (Ω.Corepresentable.app α X).invFun a
 
 def toObj (f : X ⟶ W α) : (Ω α).obj (op X) := (Ω.Corepresentable.app α X).toFun f
+
+@[simp]
+lemma Corepresentable.homEquiv_apply {X : SSetᵒᵖ} (f : op (W α) ⟶ X):
+    (Ω.Corepresentable α).homEquiv f = toObj f.unop := rfl
+
+@[simp]
+lemma Corepresentable.homEquiv_symm_apply {X : SSetᵒᵖ} (a : (Ω α).obj X) :
+    (Ω.Corepresentable α).homEquiv.symm a = (toHom a).op := rfl
 
 @[simp]
 lemma toHom_toObj (f : X ⟶ W α) :
@@ -368,9 +377,9 @@ lemma toObj.simplex {n : ℕ} (f : Δ[n] ⟶ W α) :
     toObj f = yonedaEquiv _ _ f := sorry
 -- this should follow from the explicit definition for the representation
 
-variable (α)
+end Ω
 
-abbrev UniSmallWO₀ := toObj (𝟙 (W α))
+abbrev UniSmallWO₀ := Ω.toObj (𝟙 (W α))
 
 abbrev UniSmallWO := Quotient.out $ (equivShrink (Ω_obj₀ α (W α))).symm (UniSmallWO₀ α)
 
@@ -388,13 +397,13 @@ lemma Ω.Corepresentable.universal (f : X ⟶ W α) :
   (Ω.Corepresentable α).homEquiv_comp (op f) (𝟙 _)
 
 lemma UniSmallWO.universal (g : SmallWO α X) :
-    g ≈ SmallWO.pullback (toHom (Ω_obj.mk g)) (UniSmallWO α) := by
+    g ≈ SmallWO.pullback (Ω.toHom (Ω_obj.mk g)) (UniSmallWO α) := by
   rw [← Quotient.eq]
   apply_fun equivShrink (Ω_obj₀ α _)
   change Ω_obj.mk _ = Ω_obj.mk _
   rw [← SmallWO.Ω_map_Ω_obj_mk]
-  convert Ω.Corepresentable.universal (toHom (Ω_obj.mk g))
-  . simp only [toObj_toHom]
+  convert Ω.Corepresentable.universal (Ω.toHom (Ω_obj.mk g))
+  . simp only [Ω.toObj_toHom]
   . apply UniSmallWO.Ω_obj_mk
 
 -- `Υ` defined as subtype of `Ω`
@@ -425,7 +434,7 @@ lemma SmallWO.Kan_iff_Ω_obj_mk_Kan (a : SmallWO α Y) :
     Quotient.lift_mk, eq_rec_constant]
 
 lemma Ω_obj.Kan_iff_pullback_toHom_Kan :
-    ∀ a : Ω_obj α Y, a.Kan ↔ (SmallWO.pullback (toHom a) (UniSmallWO α)).Kan := by
+    ∀ a : Ω_obj α Y, a.Kan ↔ (SmallWO.pullback (Ω.toHom a) (UniSmallWO α)).Kan := by
     apply Shrink.rec
     apply Quotient.ind
     intro a
@@ -433,12 +442,15 @@ lemma Ω_obj.Kan_iff_pullback_toHom_Kan :
     exact Kan.sound_iff _ _ (UniSmallWO.universal a)
 
 lemma Ω_obj.Kan_iff_pullback_snd_toHom_Kan (a : Ω_obj α Y) :
-    a.Kan ↔ KanFibration (pullback.snd (UniSmallWO α).hom (toHom a)) := by
+    a.Kan ↔ KanFibration (pullback.snd (UniSmallWO α).hom (Ω.toHom a)) := by
   rw [Kan_iff_pullback_toHom_Kan]; rfl
 
 -- Greek `Υ`, not latin `Y`
 variable (α) (Y) in
 abbrev Υ_obj := {a : Ω_obj α Y // a.Kan}
+
+def Υ_obj.mk (a : SmallWO α Y) (ha : a.Kan) : Υ_obj α Y :=
+  ⟨Ω_obj.mk a, a.Kan_iff_Ω_obj_mk_Kan.mp ha⟩
 
 lemma Ω_map.Kan : ∀ (a : Ω_obj α Y), a.Kan → (Ω_map α f a).Kan := by
   apply Shrink.rec
@@ -476,16 +488,30 @@ def Υ.toΩ : Υ α ⟶ Ω α where
 
 def U.toW : U α ⟶ W α := NatTrans.id (standardSimplex.op) ◫ Υ.toΩ α
 
+variable {α} in
+lemma U.toW.app_eq_val {k} (x : (U α).obj k) :
+    (U.toW α).app _ x = x.val := by
+  simp only [U.toW, FunctorToTypes.hcomp, NatTrans.id_app', FunctorToTypes.map_id_apply]
+  rfl
+
+instance U.toW.mono : Mono (U.toW α) where
+  right_cancellation {Z} g h hyp := by
+    ext k a
+    apply_fun fun f ↦ f.app k a at hyp
+    erw [NatTrans.vcomp_app, NatTrans.vcomp_app] at hyp
+    simp [app_eq_val] at hyp
+    rwa [← Subtype.val_inj]
+
 abbrev UniSmallWOKan₀ := Ω_map α (U.toW α) (UniSmallWO₀ α)
 
 abbrev UniSmallWOKan := Quotient.out $ (equivShrink (Ω_obj₀ α (U α))).symm (UniSmallWOKan₀ α)
 
 variable {α}
-lemma UniSmallWOKan₀.eq_toObj : UniSmallWOKan₀ α = toObj (U.toW α) :=
+lemma UniSmallWOKan₀.eq_toObj : UniSmallWOKan₀ α = Ω.toObj (U.toW α) :=
   (Ω.Corepresentable.universal _).symm
 
-lemma UniSmallWOKan₀.toHom : toHom (UniSmallWOKan₀ α) = U.toW α := by
-  rw [eq_toObj, toHom_toObj]
+lemma UniSmallWOKan₀.toHom : Ω.toHom (UniSmallWOKan₀ α) = U.toW α := by
+  rw [eq_toObj, Ω.toHom_toObj]
 
 lemma UniSmallWOKan.Ω_obj_mk : Ω_obj.mk (UniSmallWOKan α) = UniSmallWOKan₀ α := by
   simp only [Ω_obj.mk, UniSmallWO, Quotient.out_eq, Equiv.apply_symm_apply]
@@ -505,14 +531,9 @@ abbrev UniWOKan : U' α ⟶ₒ U α := (UniSmallWOKan α).wo
 
 variable {α}
 
-lemma U.toW.app_eq_val {k : ℕ} (x : U α _[k]) :
-    (U.toW α).app _ x = x.val := by
-  simp only [U.toW, FunctorToTypes.hcomp, NatTrans.id_app', FunctorToTypes.map_id_apply]
-  rfl
-
 lemma U.toW.simplex_comp_eq_toHom_val {k : ℕ} (σ : Δ[k] ⟶ U α):
-    σ ≫ U.toW α = toHom (((U α).yonedaEquiv [k]) σ).val := by
-  rw [← app_eq_val, yonedaEquiv_naturality', ← toObj.simplex, toHom_toObj]
+    σ ≫ U.toW α = Ω.toHom (((U α).yonedaEquiv [k]) σ).val := by
+  rw [← app_eq_val, yonedaEquiv_naturality', ← Ω.toObj.simplex, Ω.toHom_toObj]
 
 lemma U.toW.Kan_pullback_snd_simplex_comp {k : ℕ} (σ : Δ[k] ⟶ U α) :
     KanFibration (pullback.snd (UniWO α).hom (σ ≫ U.toW α)) := by
@@ -528,8 +549,7 @@ lemma U.Kan_pullback_snd_simplex : ∀ {k : ℕ} (σ : Δ[k] ⟶ U α),
   obtain ⟨h⟩ := UniSmallWOKan.equiv_smallWO_pullback (α := α)
   have comm : (UniWOKan α).hom =
     h.toIso.hom ≫ (pullback.snd (UniWO α).hom (U.toW α)) := h.comm
-  rw [comm]
-  rw [← pullback.leftCompIso_hom_comp_snd, ← Category.assoc]
+  rw [comm, ← pullback.leftCompIso_hom_comp_snd, ← Category.assoc]
   apply KanFibration.isIso_comp -- Lean has the instance that pullback.snd of iso is iso
 
 instance UniWOKan.hom.KanFibration : KanFibration (UniWOKan α).hom :=
@@ -549,12 +569,16 @@ lemma UniSmallWOKan₀.Kan : (UniSmallWOKan₀ α).Kan := by
   rw [← UniSmallWOKan.Ω_obj_mk, ← SmallWO.Kan_iff_Ω_obj_mk_Kan]
   exact UniSmallWOKan.Kan
 
+variable (α) in
+abbrev Υ_obj.UniSmallWOKan₀ : Υ_obj α (U α) :=
+  ⟨WellOrdered.UniSmallWOKan₀ α, UniSmallWOKan₀.Kan⟩
+
 lemma factor_iff_forall_Kan (f : Y ⟶ W α) :
     (∃ φ, f = φ ≫ U.toW α) ↔ (∀ ⦃k⦄ (x : Y _[k]), (f.app _ x).Kan) := by
   constructor
   . intro ⟨φ, h⟩ k x
     rw [h, Ω_obj.Kan_iff_pullback_snd_toHom_Kan,
-        yonedaEquiv_symm_naturality', ← toObj.simplex, toHom_toObj,
+        yonedaEquiv_symm_naturality', ← Ω.toObj.simplex, Ω.toHom_toObj,
         ← Category.assoc, ← yonedaEquiv_symm_naturality'₂]
     apply U.toW.Kan_pullback_snd_simplex_comp
   . intro h
@@ -570,25 +594,105 @@ lemma factor_iff_forall_Kan (f : Y ⟶ W α) :
     simp [U.toW, Υ.toΩ]
 
 lemma SmallWO.Kan_iff_factor (a : SmallWO α Y) :
-    a.Kan ↔ ∃ φ, toHom (Ω_obj.mk a)  = φ ≫ U.toW α := by
+    a.Kan ↔ ∃ φ, Ω.toHom (Ω_obj.mk a)  = φ ≫ U.toW α := by
   rw [SmallWO.Kan_iff_Ω_obj_mk_Kan, Ω_obj.Kan_iff_pullback_snd_toHom_Kan]
   constructor
   . rw [factor_iff_forall_Kan]; intro h k x
-    rw [yonedaEquiv_symm_naturality', Ω_obj.Kan_iff_pullback_snd_toHom_Kan, ← toObj.simplex,
-       toHom_toObj, ← pullback.rightCompIso_hom_comp_snd]
+    rw [yonedaEquiv_symm_naturality', Ω_obj.Kan_iff_pullback_snd_toHom_Kan, ← Ω.toObj.simplex,
+       Ω.toHom_toObj, ← pullback.rightCompIso_hom_comp_snd]
     apply KanFibration.isIso_comp' _ _ KanFibration.pullback_snd
   . intro ⟨φ, h⟩
     rw [h, ← pullback.rightCompIso_hom_comp_snd]
     apply KanFibration.isIso_comp' _ _ KanFibration.pullback_snd
 
-lemma Ω_obj.Kan_iff_factor : ∀ a : Ω_obj α Y, a.Kan ↔ ∃ φ, toHom a  = φ ≫ U.toW α := by
+lemma Ω_obj.Kan_iff_factor : ∀ a : Ω_obj α Y, a.Kan ↔ ∃ φ, Ω.toHom a  = φ ≫ U.toW α := by
   apply Shrink.rec
   apply Quotient.ind
   intro a
   convert a.Kan_iff_factor
   exact (SmallWO.Kan_iff_Ω_obj_mk_Kan _).symm
 
+lemma Ω_obj.Kan_toObj_comp {f : X ⟶ U α} :
+    (Ω.toObj (f ≫ U.toW α)).Kan := by
+  rw [Kan_iff_factor, Ω.toHom_toObj]
+  use f
 
+open Classical
+
+def Ω_obj.Kan_choose_factor (a : Ω_obj α Y) (ha : a.Kan):
+    Y ⟶ U α := choose (a.Kan_iff_factor.mp ha)
+
+lemma Ω_obj.Kan_choose_factor_spec (a : Ω_obj α Y) (ha : a.Kan):
+    Ω.toHom a  = a.Kan_choose_factor ha ≫ U.toW α := choose_spec (a.Kan_iff_factor.mp ha)
+
+variable (α) in
+def Υ.Corepresentable : (Υ α).CorepresentableBy  (op (U α)) where
+  homEquiv {Y} :={
+    toFun := fun f ↦ ⟨(Ω.Corepresentable α).homEquiv ((U.toW α).op ≫ f), by
+      simp only [Ω.Corepresentable.homEquiv_apply, unop_comp, Quiver.Hom.unop_op]
+      apply Ω_obj.Kan_toObj_comp⟩
+    invFun := fun a ↦ (a.val.Kan_choose_factor a.property).op
+    left_inv := by
+      intro f; rw [← Quiver.Hom.unop_inj.eq_iff]; simp
+      rw [← cancel_mono (U.toW α), ← Ω_obj.Kan_choose_factor_spec, Ω.toHom_toObj]
+    right_inv := by
+      intro a; apply Subtype.ext; simp
+      rw [← Ω_obj.Kan_choose_factor_spec, Ω.toObj_toHom]
+  }
+  homEquiv_comp {Y Y'} g f := by
+    apply Subtype.ext; simp [Υ, Υ_map]
+    apply (Ω.Corepresentable α).homEquiv_comp g _
+
+namespace Υ
+
+variable (α) in
+def Corepresentable.app (X : SSet.{u}):
+    (X ⟶ (U α)) ≃ (Υ α).obj (op X) :=
+  Opposite.equivToOpposite.trans ((Υ.Corepresentable α).homEquiv (Y := op X))
+
+def toHom (a : (Υ α).obj (op X)) : X ⟶ U α := (Corepresentable.app α X).invFun a
+
+def toObj (f : X ⟶ U α) : (Υ α).obj (op X) := (Corepresentable.app α X).toFun f
+
+@[simp]
+lemma Corepresentable.homEquiv_apply {X : SSetᵒᵖ} (f : op (U α) ⟶ X):
+    (Corepresentable α).homEquiv f = toObj f.unop := rfl
+
+@[simp]
+lemma Corepresentable.homEquiv_symm_apply {X : SSetᵒᵖ} (a : (Υ α).obj X) :
+    (Corepresentable α).homEquiv.symm a = (toHom a).op := rfl
+
+@[simp]
+lemma toHom_toObj (f : X ⟶ U α) :
+    toHom (toObj f) = f := (Corepresentable.app α X).left_inv _
+
+@[simp]
+lemma toObj_toHom (a : (Υ α).obj (op X)) :
+    toObj (toHom a) = a := (Corepresentable.app α X).right_inv _
+
+lemma Corepresentable.universal (f : X ⟶ U α) :
+    toObj f = (Υ α).map (op f) (Υ_obj.UniSmallWOKan₀ α) := by
+  convert (Υ.Corepresentable α).homEquiv_comp (op f) (𝟙 _)
+  apply Subtype.ext; simp
+  rw [UniSmallWOKan₀.eq_toObj]
+  rfl
+
+end Υ
+
+lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
+    Υ_obj.mk g hg = Υ_obj.mk (SmallWO.pullback (Υ.toHom (Υ_obj.mk g hg)) (UniSmallWOKan α))
+        KanFibration.pullback_snd := by
+  convert Υ.Corepresentable.universal (Υ.toHom (Υ_obj.mk g hg))
+  . simp only [Υ.toObj_toHom]
+  . apply Subtype.ext
+    simp only [Υ_obj.mk, Υ, Υ_map, op_obj, op_map, Subtype.map_coe,  ← Ω_obj_mk,
+      SmallWO.Ω_map_Ω_obj_mk]
+
+lemma UniSmallWOKan.universal' (g : SmallWO α X) (hg : g.Kan) :
+    g ≈ SmallWO.pullback (Υ.toHom (Υ_obj.mk g hg)) (UniSmallWOKan α) := by
+  rw [← Quotient.eq]
+  apply_fun equivShrink (Ω_obj₀ α _)
+  exact congrArg Subtype.val (universal g hg)
 
 end WellOrdered
 end UniversalSimplicialSet
