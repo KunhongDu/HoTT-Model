@@ -107,21 +107,34 @@ def Δ0_is_terminal : IsTerminal Δ[0] := by
 
 namespace Prod
 
+@[simp]
 def IsoProdΔ0 : X ≅ X ⨯ Δ[0] := IsoProdTerminal Δ0_is_terminal
 
 def left : X ⟶ X ⨯ Δ[1] :=
   IsoProdΔ0.hom ≫ (prod.lift prod.fst <| prod.snd ≫ standardSimplex.map (δ 1))
 
 lemma left_comp_prod_fst :
-    Prod.left (X := X) ≫ prod.fst = 𝟙 _ := by
+    left (X := X) ≫ prod.fst = 𝟙 _ := by
   simp [Prod.left, IsoProdΔ0, IsoProdTerminal]
 
 def right : X ⟶ X ⨯ Δ[1] :=
   IsoProdΔ0.hom ≫ (prod.lift prod.fst <| prod.snd ≫ standardSimplex.map (δ 0))
 
 lemma right_comp_prod_fst :
-    Prod.right (X := X) ≫ prod.fst = 𝟙 _ := by
+    right (X := X) ≫ prod.fst = 𝟙 _ := by
   simp [Prod.right, IsoProdΔ0, IsoProdTerminal]
+
+lemma left_comp_prod_map {f : X ⟶ Y} :
+    left ≫ prod.map f (𝟙 _) = f ≫ left := by
+  apply prod.hom_ext
+  . simp [left]
+  . simp [left]; rw [← Category.assoc]; congr
+
+lemma right_comp_prod_map {f : X ⟶ Y} :
+    right ≫ prod.map f (𝟙 _) = f ≫ right := by
+  apply prod.hom_ext
+  . simp [right]
+  . simp [right]; rw [← Category.assoc]; congr
 
 def IsoΔ0Prod : X ≅ Δ[0] ⨯ X := IsoTerminalProd Δ0_is_terminal
 

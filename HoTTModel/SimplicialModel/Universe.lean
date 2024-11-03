@@ -42,6 +42,14 @@ def _root_.CategoryTheory.TypesPullbackPreimageEquiv {P X Y Z : Type u}
 abbrev Fibre {n : ℕ} (y : Y _[n]) : Set (X _[n]) :=
   (f.app (op [n])) ⁻¹' {y}
 
+variable {f} in
+lemma Fibre.app_eq {n : ℕ} {y : Y _[n]} (x : Fibre f y) :
+    f.app _ x.val = y := by
+  have := x.2
+  dsimp [Fibre, Set.preimage] at this
+  rw [Set.mem_singleton_iff] at this
+  exact this
+
 def _root_.CategoryTheory.IsPullback.fibreEquiv {P X Y Z : SSet}
   {fst : P ⟶ X} {snd : P ⟶ Y} {f : X ⟶ Z} {g : Y ⟶ Z}
   (D : IsPullback fst snd f g) {n : ℕ} (y : Y _[n]) :
@@ -57,17 +65,18 @@ variable (X Y) in
 structure WellOrderedHom where
   hom : X ⟶ Y
   ord {n : ℕ} {y : Y _[n]} : LinearOrder (Fibre hom y)
-  well_ord {n : ℕ} {y : Y _[n]} : IsWellOrder _ ((ord (y := y)).lt)
+  isWellOrder {n : ℕ} {y : Y _[n]} : IsWellOrder _ ((ord (y := y)).lt)
 -- ParitialOrder + WellOrder should be LinearOrder
 -- but not show about how to define the instance so that
 -- the defintion of relations are compatible
 -- for now, use LinearOrder
 
+@[simp]
 abbrev WellOrderedHom.fibre (f : WellOrderedHom X Y) {n : ℕ} (y : Y _[n]) := Fibre f.hom y
 
 -- why isn't wellOrder a class like partialOrder
 
-attribute [instance] WellOrderedHom.ord WellOrderedHom.well_ord
+attribute [instance] WellOrderedHom.ord WellOrderedHom.isWellOrder
 
 notation X " ⟶ₒ " Y => WellOrderedHom X Y
 
@@ -118,6 +127,14 @@ end Pullback_Fibre_WellOrdered
 def Fibre.trans {f : X ⟶ Y} {f' : X' ⟶ Y} (g : X ⟶ X')
     (comm : f = g ≫ f') {y : Y _[n]} (a : (Fibre f y)): (Fibre f' y) :=
   ⟨g.app _ a, comm.symm ▸ a.2⟩
+
+def Fibre.map {f : X ⟶ Y} {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m) {y : Y.obj n}
+  (a : Fibre f (n := n.unop.len) y) :
+    Fibre f (n := m.unop.len) (Y.map φ y) := by
+  use X.map φ a.val
+  simp only [SimplexCategory.mk_len, op_unop, mem_preimage, mem_singleton_iff]
+  change (X.map φ ≫ f.app m) _ = _
+  erw [f.naturality φ, types_comp_apply, Fibre.app_eq a]
 
 -- can't find: nonempty set in a well order has a least element
 
@@ -252,13 +269,13 @@ end WellOrdered
 
 noncomputable section UniversalSimplicialSet
 
-variable {α : Cardinal.{u}} {X Y : SSet}  {reg : Cardinal.IsRegular α}
+variable {α : Cardinal.{u}} {X Y : SSet.{u}}  {reg : Cardinal.IsRegular α}
 
 namespace WellOrdered
 
 variable (α) in
-structure SmallWO (Y : SSet) where
-  of : SSet
+structure SmallWO (Y : SSet.{u}) where
+  of : SSet.{u}
   wo : of ⟶ₒ Y
   small : ∀ ⦃n⦄, ∀ y : Y _[n], Cardinal.mk (wo⁻¹ y) < α
 
@@ -276,9 +293,257 @@ instance Setoid_SmallWO {α} : Setoid (SmallWO α Y) where
 
 def Ω_obj₀ (α) (Y) := Quotient (@Setoid_SmallWO Y α)
 
+section Smallness
+open Function
+
 -- size issue here
 -- use `Small` to circumvent this temporarily
-instance : Small.{u, u + 1} (Ω_obj₀ α Y) := sorry
+variable (α X) in
+structure SmallFibresWithStructures where
+  fibre {n : SimplexCategoryᵒᵖ} (x : X.obj n) : Shrink (Set.Iio α)
+  map {n m : SimplexCategoryᵒᵖ} :
+    (n ⟶ m) → (Σ x : X.obj n, ((equivShrink _).symm (fibre x)).1.out) →
+      (Σ x : X.obj m, ((equivShrink _).symm (fibre x)).1.out)
+  map_nat {n m : SimplexCategoryᵒᵖ} {f : n ⟶ m}
+    (a : Σ x : X.obj n, ((equivShrink _).symm (fibre x)).1.out) : (map f a).fst = X.map f a.fst
+  map_id {n : SimplexCategoryᵒᵖ} : map (𝟙 n) = id
+  map_comp {n m k : SimplexCategoryᵒᵖ} (φ : n ⟶ m) (ψ : m ⟶ k) :
+    map (φ ≫ ψ) = map ψ ∘ map φ
+  order {n : SimplexCategoryᵒᵖ} (x : X.obj n) : LinearOrder ((equivShrink _).symm (fibre x)).1.out
+  isWellOrder {n : SimplexCategoryᵒᵖ} (x : X.obj n) : IsWellOrder _ ((order x).lt)
+
+@[simp]
+def SmallFibresWithStructures.toSSet (S : SmallFibresWithStructures α X) :
+    SSet.{u} where
+  obj n := Σ x : X.obj n, ((equivShrink _).symm (S.fibre x)).1.out
+  map φ := S.map φ
+  map_id _ := S.map_id
+  map_comp φ ψ := S.map_comp φ ψ
+
+@[simp]
+def SmallFibresWithStructures.toHom (S : SmallFibresWithStructures α X) :
+    S.toSSet ⟶ X where
+  app n y := y.fst
+  naturality n m f := by
+    ext; apply S.map_nat
+
+def _root_.Sigma.EquivFstPreimage (A : Type u) (f : A → Type u) (a : A) :
+    f a ≃ ↑((fun x : (b : A) × f b ↦ x.fst) ⁻¹' {a}) where
+  toFun y := ⟨⟨a, y⟩, by simp only [mem_preimage, mem_singleton_iff]⟩
+  invFun y := by
+    convert y.1.2 -- this is bad... try to use ▸
+    have := y.2
+    simp only [mem_preimage, mem_singleton_iff] at this
+    exact this.symm
+  left_inv y := by simp
+  right_inv y := by
+    ext; all_goals simp
+    have := y.2
+    simp only [mem_preimage, mem_singleton_iff] at this
+    exact this.symm
+
+def SmallFibresWithStructures.FibreToHomEquiv (S : SmallFibresWithStructures α X) {n} (y : X _[n]) :
+    Fibre S.toHom y ≃ Quotient.out ((equivShrink ↑(Iio α)).symm (S.fibre y)).val :=
+  (Sigma.EquivFstPreimage _ (fun x ↦ ((equivShrink _).symm (S.fibre x)).1.out) y).symm
+
+lemma SmallFibresWithStructures.cardinal_mk_fibre_to_hom_lt
+  (S : SmallFibresWithStructures α X) {n} (y : X _[n]) :
+    Cardinal.mk (Fibre S.toHom y) < α := by
+  rw [Cardinal.mk_congr (S.FibreToHomEquiv y)]
+  simp only [Cardinal.mk_out]
+  exact ((equivShrink ↑(Iio α)).symm (S.fibre y)).2
+
+-- there is `IsPullback.WellOrderedHom`; merge this two
+def LinearOrder.ofEquiv {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
+    LinearOrder B where
+  le a b := h.symm a ≤ h.symm b
+  le_refl _ := le_refl _
+  le_trans _ _ _ := le_trans
+  le_antisymm _ _ h₁ h₂ := by
+    rw [← h.symm.apply_eq_iff_eq]
+    apply le_antisymm h₁ h₂
+  le_total _ _ := le_total _ _
+  decidableLE _ _ := LinearOrder.decidableLE _ _
+  decidableEq a b := by
+    rw [← h.symm.apply_eq_iff_eq]
+    apply LinearOrder.decidableEq _ _ -- this should be default??
+
+-- LinearOrder.ofEquiv iff
+lemma LinearOrder.ofEquiv_le_iff_le {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
+    ∀ a b : B, (ofEquiv ord h).le a b ↔ h.symm a ≤ h.symm b := by
+  intros; rfl
+
+lemma LinearOrder.ofEquiv_lt_iff_lt {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
+    ∀ a b : B, (ofEquiv ord h).lt a b ↔ h.symm a < h.symm b := by
+  intro a b
+  rw [(ofEquiv ord h).lt_iff_le_not_le, lt_iff_le_not_le,
+      ofEquiv_le_iff_le, ofEquiv_le_iff_le]
+
+noncomputable def LinearOrder.ofEquiv.ltRelIso
+  {A B : Type u} (ord : LinearOrder A) (h : A ≃ B):
+    RelIso ord.lt (ofEquiv ord h).lt where
+  toEquiv := h
+  map_rel_iff' {_ _} := by
+    rw [ofEquiv_lt_iff_lt, h.symm_apply_apply, h.symm_apply_apply]
+
+def LinearOrder.ofEquiv.isWellOrderOfIsWellOrder {A B : Type u} (ord : LinearOrder A)
+    (h : A ≃ B) (_ : IsWellOrder A ord.lt) : IsWellOrder B (ofEquiv ord h).lt :=
+  (ofEquiv.ltRelIso ord h).symm.toRelEmbedding.isWellOrder
+
+@[simp]
+def SmallFibresWithStructures.toWO (S : SmallFibresWithStructures α X) :
+    S.toSSet ⟶ₒ X where
+  hom := S.toHom
+  ord {_ y} := LinearOrder.ofEquiv (S.order y) (S.FibreToHomEquiv y).symm
+  isWellOrder :=
+    LinearOrder.ofEquiv.isWellOrderOfIsWellOrder _ _ (S.isWellOrder _)
+
+@[simp]
+def SmallFibresWithStructures.toSmallWO (S : SmallFibresWithStructures α X) :
+    SmallWO α X where
+  wo := S.toWO
+  small {_} _ := S.cardinal_mk_fibre_to_hom_lt _
+
+variable (α X) in
+def SmallFibresWithStructures.to (S : SmallFibresWithStructures α X) :
+    Ω_obj₀ α X := ⟦S.toSmallWO⟧
+
+def SmallWO.FibreToHomEquiv (a : SmallWO α X):
+    Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
+      ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small x⟩)).val ≃
+        ↑(Fibre a.wo.hom x) := by
+  simp only [Equiv.symm_apply_apply]
+  apply Cardinal.outMkEquiv
+
+lemma aux {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+  {s : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
+      ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small x⟩)).val} {h} :
+    HEq (a.FibreToHomEquiv.symm (⟨(a.FibreToHomEquiv s).val, h⟩ : Fibre a.wo.hom y)) s := by
+  cases eq
+  simp only [Subtype.coe_eta, Equiv.symm_apply_apply, heq_eq_eq]
+
+lemma aux' {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+  {s : Fibre a.wo.hom x} {s' : Fibre a.wo.hom y} (eq' : HEq s s'):
+    HEq (a.FibreToHomEquiv.symm s) (a.FibreToHomEquiv.symm s') := by
+  cases eq
+  cases eq'
+  rfl
+
+lemma aux'₂ {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+  {s : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
+      ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small x⟩)).val}
+  {s' : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
+      ⟨Cardinal.mk ↑(Fibre a.wo.hom y), a.small y⟩)).val} (eq' : HEq s s'):
+    HEq (a.FibreToHomEquiv s) (a.FibreToHomEquiv s') := by
+  cases eq
+  cases eq'
+  rfl
+
+lemma aux'' {a : SmallWO α X} {x x' : X.obj n} {b b' : a.of.obj n} {h} {h'}
+  (eq : x = x') (eq' : b = b') :
+    HEq (⟨b, h⟩ : Fibre (n := n.unop.len) a.wo.hom x)
+      (⟨b', h'⟩ : Fibre (n := n.unop.len) a.wo.hom x') := by
+  cases eq
+  cases eq'
+  rfl
+
+@[simp]
+def SmallWO.toSmallFibresWithStructures (a : SmallWO α X) :
+    SmallFibresWithStructures α X where
+  fibre {n} x := equivShrink _
+      ⟨Cardinal.mk (a.wo.fibre (n := n.unop.len) x), a.small (n := n.unop.len) x⟩
+  map {n m} φ x :=
+    ⟨X.map φ x.fst, a.FibreToHomEquiv.symm ((Fibre.map φ (a.FibreToHomEquiv x.snd)))⟩
+  map_nat {n m f} x := by simp
+  map_id {n} := by
+    ext x
+    . simp
+    . simp [Fibre.map]
+      apply aux (FunctorToTypes.map_id_apply _ _).symm
+  map_comp {n m k} φ ψ := by
+    ext x
+    . simp
+    . simp [Fibre.map]
+      apply aux' (FunctorToTypes.map_comp_apply _ _ _ _)
+        (aux'' (FunctorToTypes.map_comp_apply _ _ _ _) rfl)
+  order _ := LinearOrder.ofEquiv a.wo.ord a.FibreToHomEquiv.symm
+  isWellOrder _ := LinearOrder.ofEquiv.isWellOrderOfIsWellOrder _ _ a.wo.isWellOrder
+
+@[simp]
+def SmallWO.toSmallFibresWithStructures_equivObj (a : SmallWO α X) (n : SimplexCategoryᵒᵖ) :
+    (x : X.obj n) ×
+      Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
+        ⟨Cardinal.mk ↑(Fibre a.wo.hom (n := n.unop.len) x), a.small _⟩)).val
+          ≃ a.of.obj n where
+  toFun s := (a.FibreToHomEquiv s.snd).val
+  invFun x := ⟨a.hom.app _ x, a.FibreToHomEquiv.symm ⟨x, rfl⟩⟩
+  left_inv s := by
+    have : a.hom.app n (a.FibreToHomEquiv s.snd).val = s.fst := (a.FibreToHomEquiv s.snd).2
+    ext; all_goals simp
+    . exact this
+    . apply aux this.symm
+  right_inv x := by simp only [Equiv.apply_symm_apply]
+
+def SmallWO.toSmallFibresWithStructures.Iso (a : SmallWO α X) :
+    a.toSmallFibresWithStructures.toSmallWO.of ≅ a.of where
+  hom := {
+    app := fun n ↦ ⇑(a.toSmallFibresWithStructures_equivObj n)
+    naturality := by intro _ _ _; ext; simp; rfl
+  }
+  inv := {
+    app := fun n ↦ ⇑(a.toSmallFibresWithStructures_equivObj n).symm
+    naturality := by
+      intro m n φ; ext x; simp
+      have : a.hom.app n (a.of.map φ x) = X.map φ (a.hom.app m x) := by
+        change (a.of.map φ ≫ _) x = _
+        rw [a.hom.naturality]; rfl
+      refine ⟨this, ?_⟩
+      apply aux' this
+      simp [Fibre.map]
+      apply aux'' this rfl
+  }
+  hom_inv_id := by
+    ext n b
+    erw [NatTrans.vcomp_app]
+    simp only [types_comp_apply, Equiv.symm_apply_apply]
+    rfl
+  inv_hom_id := by
+    ext n b
+    erw [NatTrans.vcomp_app]
+    simp; rfl
+
+def SmallWO.toSmallFibresWithStructures.OrderIso (a : SmallWO α X) :
+    OrderIso a.toSmallFibresWithStructures.toSmallWO.wo a.wo where
+  toIso := toSmallFibresWithStructures.Iso a
+  comm := by
+    ext n x
+    simp only [WellOrderedHom.fibre, SmallFibresWithStructures.toSmallWO,
+      SmallFibresWithStructures.toSSet, SmallFibresWithStructures.toWO,
+      SmallFibresWithStructures.toHom, SimplexCategory.len_mk, Iso]
+    erw [NatTrans.vcomp_app]
+    exact (a.FibreToHomEquiv x.snd).2.symm
+  mono {n y} b₁ b₂ h:= by
+    simp [Fibre.trans, Iso]
+    erw [LinearOrder.ofEquiv_le_iff_le, Equiv.symm_symm,
+         LinearOrder.ofEquiv_le_iff_le, Equiv.symm_symm] at h
+    convert h
+    . exact b₁.2
+    . exact aux'₂ b₁.2 (cast_heq _ _).symm
+    . exact b₂.2
+    . exact aux'₂ b₂.2 (cast_heq _ _).symm
+
+lemma SmallFibresWithStructures.surj : Surjective (SmallFibresWithStructures.to α X) := by
+  apply Quotient.ind
+  intro a
+  use a.toSmallFibresWithStructures
+  dsimp [SmallFibresWithStructures.to]
+  erw [Quotient.eq]
+  exact ⟨SmallWO.toSmallFibresWithStructures.OrderIso a⟩
+
+instance : Small.{u, u + 1} (Ω_obj₀ α X) :=
+  @small_of_surjective _ _ (by infer_instance) _ SmallFibresWithStructures.surj
+
+end Smallness
 
 variable (α Y) in
 abbrev Ω_obj := Shrink (Ω_obj₀ α Y)
@@ -302,7 +567,7 @@ def SmallWO.pullback (a : SmallWO α Y) :
   wo := {
     hom := pullback.snd a.wo.hom f
     ord := IsPullback.WellOrderedHom (IsPullback.of_hasPullback a.wo.hom f) _
-    well_ord := IsPullback.WellOrderedHom.isWellOrder _ _
+    isWellOrder := IsPullback.WellOrderedHom.isWellOrder _ _
   }
   small n y := by
     convert a.small (f.app _ y) using 1

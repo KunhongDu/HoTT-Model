@@ -1,259 +1,922 @@
-import HoTTModel.Universe
-import Mathlib.Data.List.Basic
+import HoTTModel.TypeStructures
+import HoTTModel.Contextual
 
-open ContextualCategory List CategoryTheory Limits
+open ContextualCategory CategoryTheory Limits
 
 namespace Universe
-variable {α : Type u} [CategoryTheory.Category.{v, u} α] {U : Universe α}
+variable {C : Type u} [CategoryTheory.Category.{v, u} C] {U : Universe C}
 
-abbrev MorU (U : Universe α) := Σ x : α, x ⟶ U.obj
-
-def Pb (X : α) : List (MorU U) → α
-| [] => X
-| cons a _ => U.pb a.snd
-
-@[simp]
-lemma pb_empty {X : α} : Pb X ([] : List (MorU U)) = X := rfl
-
-lemma pb_ne_nil (X : List (MorU U)) (hX : X ≠ []): Pb t X = U.pb (head X hX).snd := by
-  match X with
-  | [] => simp at hX
-  | a :: s => rfl
-
-@[simp]
-def Formed (X : α) : List (MorU U) → Prop
-| [] => True
-| cons a s => a.fst = Pb X s ∧ Formed X s
-
-lemma ne_nil_formed (X : List (MorU U)) (hX : X ≠ []) (h : Formed t X) : (head X hX).fst = Pb t (tail X) := by
-  match X with
-  | [] => simp at hX
-  | a :: s => simp [Formed]; exact h.1
-
-@[ext]
-structure Chain (U : Universe α) (X : α) where
-  obj : List (MorU U)
-  well_formed : Formed X obj
+inductive Chain (U : Universe C) : C → C → Type (max u v)
+| nil X : U.Chain X X
+| cons (Y : C) (g : Y ⟶ U.down) (c : U.Chain X Y)  : U.Chain X (U.pt g)
 
 namespace Chain
-@[simp]
-def Hom (X Y : Chain U t) := Pb t X.obj ⟶ Pb t Y.obj
+variable {X Y : C}
+
+def obj (_ : U.Chain X Y) : C := Y
+
+def tailObj : U.Chain X Y → C
+| nil _ => X
+| cons Y _ _ => Y
+
+def tail : (c : U.Chain X Y) → U.Chain X c.tailObj
+| nil _ => nil X
+| cons _ _ c => c
+
+def proj : (c : U.Chain X Y) → (Y ⟶ tailObj c)
+| nil _ => 𝟙 X
+| cons _ g _ => U.snd g
 
 @[simp]
-def id (X : Chain U t) := 𝟙 (Pb t X.obj)
+def ne_nil : U.Chain X Y → Prop
+| nil _ => False
+| cons _ _ _ => True
 
 @[simp]
-def comp {X Y Z : Chain U t} : Hom X Y → Hom Y Z → Hom X Z := @CategoryStruct.comp _ _ (Pb t X.obj) (Pb t Y.obj) (Pb t Z.obj)
+abbrev is_nil (c : U.Chain X Y) : Prop := ¬ c.ne_nil
 
-instance CategoryChain : Category (Chain U t) where
+lemma ne_nil_iff_not_is_nil {c : U.Chain X Y} : c.ne_nil ↔ ¬ c.is_nil := by
+  simp only [not_not]
+
+lemma is_nil_iff_not_ne_nil {c : U.Chain X Y} : c.is_nil ↔ ¬ c.ne_nil := by rfl
+
+lemma ne_nil.cons {c : U.Chain X Y} : (cons Y g c).ne_nil := by simp [ne_nil]
+
+def tailHom : (c : U.Chain X Y) → (h : c.ne_nil) → (c.tailObj ⟶ U.down)
+| nil _, h => False.elim h
+| cons _ g _, _ => g
+
+def length : {Y : C} → U.Chain X Y → ℕ
+| _, nil _ => 0
+| _, cons _ _ c => c.length + 1
+
+section LengthLemma
+
+lemma is_nil_iff_length_eq_zero {c : U.Chain X Y} : c.is_nil ↔ c.length = 0  := by
+  cases c with
+  | nil => simp only [is_nil, ne_nil, not_false_eq_true, length]
+  | cons _ _ _ => simp [is_nil, length]
+
+lemma ne_nil_iff_length_ne_zero {c : U.Chain X Y} : c.ne_nil ↔ c.length ≠ 0  := by
+  simp only [ne_eq, ← is_nil_iff_length_eq_zero, ne_nil_iff_not_is_nil]
+
+lemma is_nil.of_length_eq_zero {c : U.Chain X Y} (h : length c = 0) : c.is_nil := by
+  rwa [is_nil_iff_length_eq_zero]
+
+lemma length_eq_zero_of_is_nil {c : U.Chain X Y} (h : is_nil c) : length c = 0  := by
+  rwa [← is_nil_iff_length_eq_zero]
+
+lemma eq_of_length_eq_zero {c : U.Chain X Y} (h : length c = 0) :
+    Y = X := by
+  cases c with
+  | nil => rfl
+  | cons Y g c => simp [length] at h
+
+lemma heq_of_length_eq_zero {c : U.Chain X Y} (h : length c = 0) :
+    HEq c (Chain.nil (U:= U) X) := by
+  cases c with
+  | nil => rfl
+  | cons Y g c => simp [length] at h
+
+lemma length_tail {c : U.Chain X Y} :
+    length (tail c) = length c - 1 := by
+  cases c <;> rfl
+
+lemma length_tail' {c : U.Chain X Y} :
+    length c = n + 1 → length (tail c) = n := by
+  intro h; rw [length_tail, h]; rfl
+
+end LengthLemma
+
+section Lemma
+
+lemma tailHom_cons {g : Y ⟶ U.down} (c : U.Chain X Y) :
+  (Chain.cons Y g c).tailHom (by simp) = g := rfl
+
+end Lemma
+
+end Chain
+
+@[ext]
+structure Chains (U : Universe C) (X : C) : Type (max u v) where
+  dom : C
+  chain : U.Chain X dom
+
+@[simp]
+def Chain.toChains (c : U.Chain X Y) : U.Chains X where
+  dom := Y
+  chain := c
+
+namespace Chains
+
+open Chain
+
+section CategoryChains
+
+structure Hom (c d : U.Chains X) where
+  hom : c.dom ⟶ d.dom
+
+@[simp]
+def id (c : U.Chains X) : Hom c c where
+  hom := 𝟙 c.dom
+
+@[simp]
+def comp {c d e : U.Chains X} :
+    Hom c d → Hom d e → Hom c e :=
+  fun x y ↦ ⟨x.hom ≫ y.hom⟩
+
+instance CategoryChains : Category (U.Chains X) where
   Hom := Hom
   id := id
   comp := comp
 
 @[simp]
-lemma HomDef (X Y : Chain U t) : (X ⟶ Y) = (Pb t X.obj ⟶ Pb t Y.obj) := rfl
+lemma comp_hom {c d e: U.Chains X} {f : c ⟶ d} {g : d ⟶ e} :
+    (f ≫ g).hom = f.hom ≫ g.hom :=
+  rfl
 
 @[simp]
-lemma CategoryChain.id {X : Chain U t}: 𝟙 X = 𝟙 (Pb t X.obj) := rfl
-
-section ContextualStrucutre
-
-@[simp]
-def one : Chain U t where
-  obj := []
-  well_formed := by simp;
+lemma id_hom {c : U.Chains X} :
+    (𝟙 c : Hom c c).hom = 𝟙 c.dom :=
+  rfl
 
 @[simp]
-def gr (X : Chain U t) : ℕ := length X.obj
+lemma eqToHom_hom {c d: U.Chains X} (h : c = d):
+    (eqToHom h).hom = eqToHom (congrArg dom h):= by
+  cases h; simp
 
-def one_uniq {X : Chain U t} : gr X = 0 → X = (@one _ _ U t) := by intro h; ext1; simp only [one]; rw [← length_eq_zero]; exact h
+@[ext]
+lemma hom_ext {c d : U.Chains X} {f g : c ⟶ d} (h : f.hom = g.hom) : f = g := by
+  cases f
+  cases g
+  simp at h
+  simp [h]
 
--- this is badly written
-instance UniqueToTerminal (h : IsTerminal t) (X : Chain U t) : Unique (X ⟶ one) := by
-  simp only [HomDef, one, pb_empty]
-  apply isTerminalEquivUnique _ t h
+end CategoryChains
 
-def one_terminal (h : IsTerminal t) : IsTerminal (@one _ _ U t) := by
-  have (X : Chain U t) : X ⟶ one := IsTerminal.from h (Pb t X.obj)
-  apply IsTerminal.ofUniqueHom this
-  intro X m
-  have : Subsingleton (X ⟶ one) := @Unique.instSubsingleton _ (UniqueToTerminal h X)
-  apply Subsingleton.allEq
+section PreContextualStructure
 
-abbrev ft' : List (MorU U) → List (MorU U) := drop 1
+variable {X : C} {c d : U.Chains X}
 
-lemma ft'_formed : (X : List (MorU U)) → (h : Formed t X) → Formed t (ft' X)
-| [], _ => by simp
-| cons a s, h => by simp only [ft', drop_one, tail_cons]; exact h.2
+@[simp]
+def one : U.Chains X := (Chain.nil X).toChains
 
-lemma formed_head : (X : List (MorU U)) → (h : Formed t X) → (h' : X ≠ []) →  (head X h').fst = Pb t (ft' X)
-| [], _, _ => by contradiction
-| cons a s, h, _ => by simp only [head_cons, drop_succ_cons, drop_zero]; exact h.1
+@[simp]
+def gr (c : U.Chains X) : ℕ := c.chain.length
 
-lemma formed_head' (X : Chain U t) (h' : X.obj ≠ []) : (head X.1 h').fst = Pb t (ft' X.1) := formed_head X.1 X.2 _
-
-def ft (X : Chain U t) : Chain U t where
-  obj := ft' X.obj
-  well_formed := by apply ft'_formed _ X.well_formed
-
-lemma ft_obj {X : Chain U t} : (ft X).obj = ft' X.obj := rfl
-
-def ft_one : ft (@one _ _ U t) = one := by ext1; simp only [ft, one, drop_nil]
-
-def ft_gr {n : ℕ} (X : Chain U t): gr X = n + 1 → gr (ft X) = n := by
-  simp only [gr, ft, ft', drop_one, length_tail]
+lemma one_uniq {c : U.Chains X} : gr c = 0 → c = one := by
+  simp
   intro h
-  simp only [h, Nat.succ_sub_succ_eq_sub, Nat.sub_zero]
+  ext
+  simp [eq_of_length_eq_zero h]
+  simp [heq_of_length_eq_zero h]
 
-def proj' : (X : List (MorU U)) → (h : Formed t X) → (Pb t X ⟶ Pb t (ft' X))
-| [], _ => 𝟙 t
-| cons a _, h => U.pb_vmap a.snd ≫ eqToHom h.1
-
-def proj (X : Chain U t) : X ⟶ ft X := proj' X.obj X.well_formed
-
-class isTerminal (t : α) where
+class isTerminal (t : C) where
   is_terminal : IsTerminal t
 
-lemma is_terminal (t : α) [h : isTerminal t] : IsTerminal t := h.is_terminal
-/-
-noncomputable instance instChainPreContextualCategory [isTerminal t] : PreContextualCategory (Chain U t) where
-  Cat := by infer_instance
-  gr := gr
-  one := one
-  one_gr := by simp
-  one_uniq := one_uniq
-  one_terminal := one_terminal (is_terminal t)
-  ft := ft
-  ft_one := ft_one
-  ft_gr := ft_gr
-  proj := proj
--/
+def is_terminal (t : C) [h : isTerminal t] :
+    IsTerminal t :=
+  h.is_terminal
+
+instance UniqueToTerminal [h : isTerminal t] (X : U.Chains t) :
+    Unique (X ⟶ one) where
+  default := ⟨(isTerminalEquivUnique _ t h.1 _).default⟩
+  uniq a := by ext; apply (isTerminalEquivUnique _ t h.1 _).uniq
+
+def one_terminal [isTerminal t] : IsTerminal (@one _ _ U t) :=
+  IsTerminal.ofUniqueHom (fun _ ↦ default) (fun _ ↦ Unique.uniq _)
 
 @[simp]
-instance instChainPreContextualCategory [h : isTerminal t] : PreContextualCategory (Chain U t) where
+def ft (c : U.Chains X) : U.Chains X where
+  dom := c.chain.tailObj
+  chain := c.chain.tail
+
+lemma ft_one : ft (@one _ _ U X) = one :=
+  by simp [tailObj, Chain.tail]
+
+lemma ft_gr {n : ℕ} (c : U.Chains X) :
+    gr c = n + 1 → gr (ft c) = n :=
+  length_tail'
+
+def proj (c : U.Chains X) : c ⟶ ft c :=
+  ⟨c.chain.proj⟩
+
+@[simp]
+instance instChainsPreContextualCategory [isTerminal t] :
+    PreContextualCategory (U.Chains t) where
   Cat := by infer_instance
   gr := gr
   one := one
-  one_gr := by simp
+  one_gr := by aesop
   one_uniq := one_uniq
-  one_terminal := one_terminal h.is_terminal
+  one_terminal := one_terminal
   ft := ft
   ft_one := ft_one
   ft_gr := ft_gr
   proj := proj
 
-variable {t : α} [isTerminal t]
+end PreContextualStructure
 
-lemma ne_nil_of_NR {X : Chain U t} [h : NR X] : X.obj ≠ [] := by
-  have := h.nr
-  dsimp [gr] at this
-  rwa [← List.length_pos_iff_ne_nil, ← Nat.ne_zero_iff_zero_lt]
+section ContextualStructure
 
-def pb' {X Y : Chain U t} [NR X] (f : Y ⟶ ft X) : MorU U :=
-  ⟨Pb t Y.obj, f ≫ eqToHom (formed_head' X ne_nil_of_NR).symm ≫ (head X.obj ne_nil_of_NR).snd⟩
+variable {t : C} [isTerminal t] {d : U.Chains t}
+  {Y : C} {p : Y ⟶ U.down} {c : U.Chain t Y}
 
-lemma pb'_fst {X Y : Chain U t} [NR X] {f : Y ⟶ ft X} : (pb' f).fst = Pb t Y.obj := rfl
+lemma ne_nil_of_NR [h : NR d] : ne_nil d.chain := by
+  rw [ne_nil_iff_not_is_nil, is_nil_iff_length_eq_zero]
+  exact h.nr
 
-def pb {X Y : Chain U t} [NR X] (f : Y ⟶ ft X) : Chain U t where
-  obj := pb' f :: Y.obj
-  well_formed := by simp [Formed]; exact ⟨pb'_fst, Y.2⟩
+-- maybe use cases as those below???
+def ft_hom (c : U.Chains t) [NR c] : (ft c).dom ⟶ U.down :=
+  c.chain.tailHom ne_nil_of_NR
 
-lemma gr_pb {X Y : Chain U t} [NR X] {f : Y ⟶ ft X} : gr (pb f) ≠ 0 := by
-  simp only [gr, pb, length_cons, ne_eq, Nat.succ_ne_zero, not_false_eq_true]
+def cons (Y : C) (g : Y ⟶ U.down) (e : U.Chain t Y) : U.Chains t :=
+  ⟨U.pt g, Chain.cons Y g e⟩
 
-lemma ft_pb  {X Y : Chain U t} [NR X] {f : Y ⟶ ft X} : ft (pb f) = Y := by ext1; simp [ft, pb]
+def cons' (d : U.Chains t) (g : d.dom ⟶ U.down) := cons _ g d.chain
 
-notation g" ● "f => (fun x ↦ x ≫ g) f
+omit [isTerminal t] in
+@[simp]
+lemma ft_cons' {g : d.dom ⟶ U.down} : (d.cons' g).ft = d := by
+  simp [cons', cons, tailObj, tail]
 
-def pb_map_comm_aux {X Y : Chain U t} [NR X] (f : Y ⟶ ft X) :
-  ((pb' f).snd ● proj (pb f)) = U.pb_hmap ((pb' f).snd) ≫ U.map := by
-    rw [← U.comm]
-    apply congrArg (fun x ↦ x ≫ _)
-    simp [proj, proj', pb]
+instance : NR (cons Y p c) where
+  nr := by simp [gr, length]
 
-def head_map (X : Chain U t) [NR X] : Pb t (ft X).obj ⟶ U.obj :=
-  eqToHom (formed_head' X _).symm ≫ (head X.obj ne_nil_of_NR).snd
+def pb_cons (f : d ⟶ ft (cons Y p c)) : U.Chains t where
+  dom := U.pt (f.hom ≫ p)
+  chain := Chain.cons d.dom (f.hom ≫ p) d.chain
 
-lemma congrFunAux {s : α} {f : (t : α) → ((t ⟶ s) → α)} {a b : α} (h : a = b) : HEq (f a) (f b) := by
+variable {f : d ⟶ ft (cons Y p c)}
+
+-- note `ft (cons Y p c) = c.toChains` definitionally
+
+omit [isTerminal t] in
+lemma gr_pb_cons_ne_zero : gr (pb_cons f) ≠ 0 := by simp [length]
+
+omit [isTerminal t] in
+lemma ft_pb_cons: ft (pb_cons f) = d := rfl
+
+omit [isTerminal t] in
+lemma pb_map_cons_comm (f : d ⟶ ft (cons Y p c)) :
+    U.fst (f.hom ≫ p) ≫ U.hom = (U.snd (f.hom ≫ p) ≫ f.hom) ≫ p :=
+  by rw [U.comm, Category.assoc]
+
+noncomputable def pb_map_cons (f : d ⟶ ft (cons Y p c)) : pb_cons f ⟶ (cons Y p c) where
+  hom := (U.isPullback p).lift (U.fst (f.hom ≫ p)) (U.snd (f.hom ≫ p) ≫ f.hom)
+    (pb_map_cons_comm _)
+
+omit [isTerminal t] in
+lemma pb_map_cons_fst : (pb_map_cons f).hom ≫ U.fst p = U.fst (f.hom ≫ p) :=
+  (U.isPullback p).lift_fst _ _ _
+
+omit [isTerminal t] in
+lemma pb_map_cons_snd : (pb_map_cons f).hom ≫ U.snd p = U.snd (f.hom ≫ p) ≫ f.hom :=
+  (U.isPullback p).lift_snd _ _ _
+
+omit [isTerminal t] in
+lemma comm_cons :
+  (pb_map_cons f) ≫ proj (cons Y p c) = ((proj <| pb_cons f) ≫ eqToHom (ft_pb_cons (f := f))) ≫ f := by
+  ext; simp
+  apply PullbackCone.IsLimit.lift_snd _ _ _ _
+
+omit [isTerminal t] in
+lemma pullback_id_obj_cons : pb_cons (𝟙 (ft (cons Y p c))) = cons Y p c := by
+  ext
+  . simp [pb_cons]; rfl
+  . simp [pb_cons, cons, tail, tailObj]; rw [Category.id_comp]
+
+lemma _root_.CategoryTheory.eqToHom_comp_iff_heq {C : Type u₁} [CategoryTheory.Category.{v₁, u₁} C]
+  {W : C} {X : C} {Y : C} (f : W ⟶ X) (g : Y ⟶ X) (h : W = Y) :
+    eqToHom h ≫ g = f ↔ HEq g f := by
   cases h
   simp
 
-lemma pb_head_map (X : Chain U t) [NR X] : U.pb (head_map X) = Pb t X.obj := by
-  rw [pb_ne_nil (t:= t) X.obj]
-  have eq : Pb t (ft X).obj = (head X.obj ne_nil_of_NR).fst := by rw [formed_head' X _, ft_obj]
-  simp [head_map]
-  apply congr_heq _
-  rw [← Functor.conj_eqToHom_iff_heq]
-  simp
-  exact eq
-  rfl
-  apply congrFunAux eq
+omit [isTerminal t] in
+lemma pb_map_cons_id_map :
+    pb_map_cons (𝟙 (ft (cons Y p c))) = eqToHom pullback_id_obj_cons := by
+  symm; ext
+  simp [pb_map_cons, cons, tailObj]
+  apply (U.isPullback p).hom_ext
+  all_goals simp [eqToHom_comp_iff_heq]; congr; simp only [Category.id_comp]
 
-def pb_map_aux {X Y : Chain U t} [NR X] (f : Y ⟶ ft X) : Pb t (pb f).obj ⟶ U.pb (head_map X) := by
-  apply PullbackCone.IsLimit.lift (@is_pullback _ _ U _ (head_map X)) (proj (pb f) ≫ f) (U.pb_hmap ((pb' f).snd))
-  rw [← pb_map_comm_aux]
-  simp
-  apply congrArg
-  simp [head_map, pb']
+omit [isTerminal t] in
+lemma pullback_id_map_cons :
+    eqToHom pullback_id_obj_cons.symm ≫ pb_map_cons (𝟙 (ft (cons Y p c))) = 𝟙 (cons Y p c) := by
+  rw [pb_map_cons_id_map]; simp
 
-def pb_map {X Y : Chain U t} [NR X] (f : Y ⟶ ft X) : pb f ⟶ X := by
-  rw [HomDef]
-  exact pb_map_aux f ≫ eqToHom (pb_head_map X)
+omit [isTerminal t] in
+lemma pullback_comp_obj_cons {g : e ⟶ d} :
+    pb_cons (g ≫ f) = pb_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) := by
+  simp [pb_cons]
+  congr 1; simp only [Category.assoc, Category.comp_id]
 
-lemma ChainComp {X Y Z : Chain U t} (f : X ⟶ Y) (g : Y ⟶ Z) : f ≫ g = comp f g := rfl
+omit [isTerminal t] in
+lemma pullback_comp_map_cons {g : e ⟶ d} :
+    pb_map_cons (g ≫ f) =
+      eqToHom (pullback_comp_obj_cons (f := f) (g := g)) ≫
+        pb_map_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) ≫ pb_map_cons f := by
+  ext
+  apply (U.isPullback p).hom_ext
+  . simp
+    rw [pb_map_cons_fst, pb_map_cons_fst, pb_map_cons_fst, ← Category.comp_id (eqToHom _ ≫ _),
+        ← eqToHom_refl U.up (Eq.refl U.up), Category.assoc, conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    congr 1; simp
+  . simp
+    rw [pb_map_cons_snd, pb_map_cons_snd, ← Category.assoc _ _ f.hom, pb_map_cons_snd,
+        ← Category.comp_id (_ ≫ f.hom), ← eqToHom_refl (dom _) (Eq.refl _),
+        conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    simp
+    congr 1
+    . simp only [pb_cons, Category.assoc, Category.comp_id]
+    . congr 1; simp only [Category.assoc, Category.comp_id]
 
-lemma comm {X Y : Chain U t} [NR X] {f : Y ⟶ ft X} : (pb_map f) ≫ proj X = (proj <| pb f) ≫ eqToHom (ft_pb (f := f)) ≫ f := by
-  simp [pb_map, ChainComp, pb_map_aux]
-  have : eqToHom (pb_head_map X) ≫ proj X = (PullbackCone.mk (U.pb_vmap (head_map X)) (U.pb_hmap (head_map X)) U.comm).fst := by
-    simp [head_map]
-    sorry
-    --- rewrite head_map and proj (they should match!!)
-  rw [this]
-  apply PullbackCone.IsLimit.lift_fst
+def is_pullback_from {X Y Z W : U.Chains t} {f : X ⟶ Y} {g : X ⟶ Z} {h : Y ⟶ W} {i : Z ⟶ W}
+  (is : IsPullback f.hom g.hom h.hom i.hom) :
+    IsPullback f g h i where
+  w := by ext; simp [is.w]
+  isLimit' := ⟨by
+      apply PullbackCone.isLimitAux'; intro s
+      use ⟨is.lift s.fst.hom s.snd.hom (by rw [← comp_hom, s.condition, comp_hom])⟩
+      simp
+      constructor; ext; apply PullbackCone.IsLimit.lift_fst
+      constructor; ext; apply PullbackCone.IsLimit.lift_snd
+      intro m hm hm'
+      ext; simp
+      apply is.hom_ext
+      . simp; rw [← comp_hom, hm]
+      . simp; rw [← comp_hom, hm']
+    ⟩
 
-lemma split {X : Chain U t} [NR X] : X.obj = (head X.obj ne_nil_of_NR) :: (ft X).obj := by
-  dsimp [ft, ft']
-  rw [List.drop_one, List.head_cons_tail]
+noncomputable def is_pullback_cons:
+    IsPullback (pb_map_cons f) ((pb_cons f).proj ≫ eqToHom (ft_pb_cons (f := f)))
+      (proj (cons Y p c)) f := is_pullback_from {
+  w := by change (pb_map_cons f ≫ _).hom = ((proj _ ≫ _) ≫ _).hom; rw [comm_cons]
+  isLimit' := ⟨by
+    apply topSquareIsPullback _ rfl (U.isPullback p).isLimit
+    convert (U.isPullback (f.hom ≫ p) ).isLimit
+    simp [PullbackCone.pasteVert, pb_map_cons]
+    rfl
+    ⟩}
+
+@[elab_as_elim]
+def cases_cons {h : (c : U.Chains t) → [NR c] → Sort w}
+  (h' : ∀ {Y p c}, h (cons Y p c)) (c : U.Chains t) [NR c]:
+    h c := by
+  cases c with
+  | mk X c =>
+    cases c with
+    | nil => rename _ => inst; have := inst.nr; simp [gr, length] at this
+    | cons Y g c => exact h'
+
+variable {c d : U.Chains t} [NR c]
+
+def pb (f : d ⟶ ft c) :
+    U.Chains t :=
+  cases_cons pb_cons c f
+
+noncomputable def pb_fst (f : d ⟶ ft c) :
+    pb f ⟶ c :=
+  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (pb f ⟶ c)) pb_map_cons c f
+
+lemma gr_pb {f : d ⟶ ft c} :
+    gr (pb f) ≠ 0 :=
+  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (gr (pb f) ≠ 0)) (fun _ ↦ gr_pb_cons_ne_zero) c f
+
+instance NR_pb {f : d ⟶ ft c} :
+    NR (pb f) := ⟨gr_pb⟩
+
+lemma ft_pb {f : d ⟶ ft c} :
+    ft (pb f) = d :=
+  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (ft (pb f) = d)) (fun _ ↦ ft_pb_cons) c f
 
 /-
-Universe.Chain.formed_head'.{u, v} {α : Type u} [inst✝ : Category.{v, u} α] {U : Universe α} {t : α} (X : Chain U t)
-  (h' : X.obj ≠ []) : (head X.obj h').fst = Pb t (ft' X.obj)
--/
-#check formed_head'
+lemma comm {f : d ⟶ ft c} :
+    (proj <| pb f) ≫ eqToHom (ft_pb (f := f)) ≫ f = (pb_fst f) ≫ proj c :=
+  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → ((proj <| pb f) ≫
+    eqToHom (ft_pb (f := f)) ≫ f = (pb_fst f) ≫ proj c)) (fun _ ↦ comm_cons) c f-/
 
-lemma heq_comp (x y z : α) (f : y ⟶ z) (eq : x = y) : HEq (eqToHom eq ≫ f) f := by
-  cases eq
-  simp
+lemma pullback_id_obj :
+    pb (𝟙 (ft c)) = c :=
+  cases_cons (h := fun c ↦ pb (𝟙 (ft c)) = c) (fun {Y p c} ↦ @pullback_id_obj_cons C _ U t Y p c) c
 
-lemma pullback_id_obj {X : Chain U t} [NR X]: pb (𝟙 (ft X)) = X := by
-  ext1
-  have : X.obj = (head X.obj ne_nil_of_NR) :: (ft X).obj := split
-  rw [this]
-  dsimp [pb, pb']
-  apply congrArg (fun x ↦ x :: _)
-  ext1
-  simp only [ft_obj]
-  rw [formed_head']
-  simp
-  apply heq_comp
+lemma pullback_id_map :
+    eqToHom (pullback_id_obj (c := c)).symm ≫ pb_fst (𝟙 (ft c)) = 𝟙 c :=
+  cases_cons (h := fun c ↦ eqToHom (pullback_id_obj (c := c)).symm ≫ pb_fst (𝟙 (ft c)) = 𝟙 c)
+    (fun {Y p c} ↦ @pullback_id_map_cons C _ U t Y p c) c
 
-#exit
-instance instChainContextualCategory : ContextualCategory (Chain U t) where
+lemma pullback_comp_obj {c d e : U.Chains t} [NR c] {f : d ⟶ ft c} {g : e ⟶ d} :
+    pb (g ≫ f) = pb (g ≫ eqToHom (ft_pb (f := f)).symm) :=
+  cases_cons (h := fun c ↦ {f : d ⟶ ft c} → {g : e ⟶ d} → pb (g ≫ f) =
+    pb (g ≫ eqToHom (ft_pb (f := f)).symm))
+      (fun {Y p c f} ↦ @pullback_comp_obj_cons C _ U t d Y p c f e) c
+
+lemma pullback_comp_map {c d e : U.Chains t} [NR c] {f : d ⟶ ft c} {g : e ⟶ d} :
+    pb_fst (g ≫ f) = eqToHom (pullback_comp_obj (f := f) (g := g)) ≫
+      pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f :=
+  cases_cons (h := fun c ↦ {f : d ⟶ ft c} → {g : e ⟶ d} → pb_fst (g ≫ f) =
+    eqToHom (pullback_comp_obj (f := f) (g := g)) ≫
+      pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f)
+      (fun {Y p c f} ↦ @pullback_comp_map_cons C _ U t d Y p c f e) c
+
+noncomputable def is_pullback (f : d ⟶ ft c) :
+    IsPullback (pb_fst f) (proj (pb f) ≫ eqToHom ft_pb) (proj c) f :=
+  cases_cons
+    (h := fun c ↦ (f : d ⟶ ft c) → (IsPullback (pb_fst f) (proj (pb f) ≫ eqToHom ft_pb) (proj c) f))
+    (fun _ ↦ is_pullback_cons) c f
+
+noncomputable instance instChainsContextualCategory : ContextualCategory (U.Chains t) where
   pb := pb
-  pb_map := pb_map
+  pb_fst := pb_fst
   gr_pb := gr_pb
   ft_pb := ft_pb
-  comm := sorry
-  is_pullback := sorry
-  pullback_id_obj := sorry
-  pullback_id_map := sorry
-  pullback_comp_obj := sorry
-  pullback_comp_map := sorry
+  isPullback := is_pullback
+  pullback_id_obj := pullback_id_obj
+  pullback_id_map := pullback_id_map
+  pullback_comp_obj := pullback_comp_obj
+  pullback_comp_map := pullback_comp_map
+
+end ContextualStructure
+
+section TypeStructures
+
+variable {t : C} [isTerminal t] (Γ : U.Chains t)
+
+abbrev Ext := ContextualCategory.Ext Γ
+
+namespace Ext
+section
+variable (A : Ext Γ)
+
+-- `Ext` is not nil
+lemma obj_chain_ne_nil : A.obj.chain.ne_nil := ne_nil_of_NR
+
+-- `Ext` defines tailHom
+@[simp]
+def tailHom := A.obj.chain.tailHom A.obj_chain_ne_nil
+
+abbrev proj' : A.obj.dom ⟶ A.obj.ft.dom := (proj A.obj).hom
+
+end
+
+def mk (c : U.Chain t Y) (h : ft ⟨_, c⟩ = Γ) (h' : ne_nil c): Ext Γ where
+  obj := ⟨_, c⟩
+  ft' := h
+  gr' := by
+    change c.length = gr _ + _
+    rw [ne_nil_iff_length_ne_zero] at h'
+    apply Nat.succ_pred_eq_of_ne_zero at h'
+    have := h ▸ ft_gr ⟨_, c⟩ h'.symm
+    rwa [this, eq_comm]
+
+def rec (F : Ext Γ → Sort*)
+  (h : ∀ (Y) (c : U.Chain t Y) (h h'), F (Ext.mk Γ c h h')) (c : Ext Γ) :
+    F c := by
+  cases c with
+  | mk c _ gr' =>
+    apply h
+    change c.chain.length = _ at gr'
+    rw [ne_nil_iff_length_ne_zero, gr']
+    apply Nat.succ_ne_zero
+
+def rec' (F : Ext Γ → Sort*)
+  (h : ∀ (g : Γ.dom ⟶ U.down) (c : U.Chain t Γ.dom) h,
+    F (Ext.mk Γ (Chain.cons Γ.dom g c) h ne_nil.cons)) (c : Ext Γ) :
+    F c := by
+  induction c using Ext.rec with
+  | h Y c h' h'' =>
+      cases c with
+    | nil => simp at h''
+    | cons Y g c =>
+        cases h'; apply h
+
+def mk' (g : Γ.dom ⟶ U.down) : Ext Γ where
+  obj := cons' Γ g
+  ft' := ft_cons'
+  gr' := rfl
+
+def rec'' (F : Ext Γ → Sort*)
+  (h : ∀ g , F (Ext.mk' Γ g)) (c : Ext Γ) :
+    F c := by
+  induction c using Ext.rec' with
+  | h g c h' =>
+    convert h g
+    simp [mk, mk', cons, cons']
+    simp [ft, tail, tailObj] at h'
+    apply_fun Chains.chain at h'
+    exact h'
+
+variable (A : Ext Γ)
+
+variable {Γ} in
+/--
+```
+mk Γ → U.up
+↓       ↓
+Γ → U.down
+```
+-/
+def mk'.isPullback (g : Γ.dom ⟶ U.down) :
+    IsPullback (U.fst g) (mk' Γ g).hom.hom U.hom g := by
+  convert U.isPullback g
+  simp only [Ext.hom, comp_hom, eqToHom_refl, id_hom, Category.comp_id]
+  -- just rewrite this;; it's no good
+  rfl
+
+/--
+```
+A === U.pt ---→ U.up
+       |          |
+       ↓          ↓
+       ft A --→  U.down
+```
+-/
+lemma obj_eq_pt : A.obj.dom = U.pt A.tailHom := by
+  induction A using Ext.rec'' with
+  | h g => rfl
+
+def fst : A.obj.dom ⟶ U.up :=
+  eqToHom A.obj_eq_pt ≫ U.fst A.tailHom
+
+def ft_eq : A.obj.ft.dom = Γ.dom := by simp only [← A.ft']; rfl
+
+def proj : A.obj.dom ⟶ Γ.dom := A.obj.proj.hom ≫ eqToHom A.ft_eq
+
+-- Better name???
+def gen : Γ.dom ⟶ U.down := eqToHom (A.ft_eq).symm ≫ A.tailHom
+
+/--
+```
+A === U.pt ---→ U.up
+|       |          |
+↓       ↓          ↓
+Γ ===  ft A --→  U.down
+```
+-/
+lemma isPullback :
+    IsPullback A.fst A.hom.hom U.hom A.gen := by
+  induction A using Ext.rec'' with
+  | h g =>
+      simp [mk', fst, Ext.hom, gen]
+      convert U.isPullback _
+
+lemma isPullbackLeft {X : C} (f : Γ.dom ⟶ X) (g : X ⟶ U.down) :
+    IsPullback ((mk'.isPullback (f ≫ g)).liftIsPullbackOf (U.isPullback g) f rfl)
+      (mk' Γ (f ≫ g)).hom.hom (U.snd g) f := by
+  apply IsPullback.of_right _ _ (U.isPullback g)
+  . convert mk'.isPullback (f ≫ g)
+    simp only [IsPullback.liftIsPullbackOf_fst]
+  . simp only [IsPullback.liftIsPullbackOf_snd]
+
+end Ext
+-- say we want to define the interpretation function from TT for CC.
+-- the initial data is `⊢ B`, which should correponds to `Ext 1`
+-- so indeed, `A : Ext Γ` is the data to start with
+
+/-
+variable {Γ} in
+/--
+  Equivalence bewteen homs in the over category and sections.
+-/
+noncomputable def Section.equiv {n} (A : Ext Γ n) :
+    (Over.mk (𝟙 Γ.dom) ⟶ Over.mk A.hom.hom) ≃ Section A where
+  toFun f := by
+    apply Over.homMk (Hom.mk f.left) _
+    ext; simp only [comp_hom]
+    erw [Over.w f]; rfl
+  invFun s := by
+    apply Over.homMk s.left.hom _
+    change (s.left ≫ A.hom).hom = _
+    erw [Over.w s]; rfl
+  left_inv := by intro f; rfl
+  right_inv := by intro s; rfl
+
+
+variable {Γ} in
+/--
+A section of `Ext` in chain defines a section in the original category.
+-/
+noncomputable def Section.toHom {n} {A : Ext Γ n} :=
+  ⇑(Section.equiv A).symm
+
+variable {Γ} in
+/--
+A section of `Ext` in chain from a section in the original category.
+-/
+noncomputable abbrev Section.ofHom {n} {A : Ext Γ n} :=
+  ⇑(Section.equiv A)
+-/
+
+variable {Γ} in
+/--
+  Equivalence bewteen homs in the over category and sections.
+-/
+noncomputable def Section.equiv (A : Ext Γ) :
+    (Over.mk (𝟙 Γ.dom) ⟶ Over.mk A.hom.hom) ≃ Section A where
+  toFun f := by
+    apply Over.homMk (Hom.mk f.left) _
+    ext; simp only [comp_hom]
+    erw [Over.w f]; rfl
+  invFun s := by
+    apply Over.homMk s.left.hom _
+    change (s.left ≫ A.hom).hom = _
+    erw [Over.w s]; rfl
+  left_inv := by intro f; rfl
+  right_inv := by intro s; rfl
+
+
+variable {Γ} in
+/--
+A section of `Ext` in chain defines a section in the original category.
+-/
+noncomputable abbrev Section.toHom {A : Ext Γ} :=
+  ⇑(Section.equiv A).symm
+
+variable {Γ} in
+/--
+A section of `Ext` in chain from a section in the original category.
+-/
+noncomputable abbrev Section.ofHom {A : Ext Γ} :=
+  ⇑(Section.equiv A)
+
+noncomputable section
+
+open Pi
+
+namespace Pi
+open LocallyCartesianClosed
+
+variable [HasPullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C]
+
+variable (S : Pi.Structure U) {Γ} {A : Γ.Ext} (B : A.obj.Ext)
+
+def form : Γ.Ext :=
+  Ext.mk' Γ (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom)
+
+variable (b : Section B)
+
+def ProdIsoPullbackDProd : (ΠA.hom.hom).obj (Over.mk B.hom.hom) ≅
+    ((IsPullback.form₀ A.isPullback B.isPullback)*).obj ((Π(Gen₁.snd U)).obj (Gen₂.snd' U)) :=
+  IsPullback.snd_isoPullback $ DProd.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
+  (IsPullback.form₂.isPullback A.isPullback B.isPullback)
+
+def transfer :
+    (ΠA.hom.hom).obj (Over.mk B.hom.hom) ≅ Over.mk (Ext.hom (form S B)).hom :=
+  (ProdIsoPullbackDProd B) ≪≫ (((IsPullback.form₀ A.isPullback B.isPullback)*).mapIso S.iso) ≪≫
+  (U.pullbackSnd'_isoPullback_snd' S.hom  _).symm ≪≫
+  (U.isoOverSnd (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom))).symm
+
+variable {B}
+def intro : Section (form S B) :=
+  Section.ofHom $ IsPullback.adjEquiv (IsPullback.of_id_snd (f := A.hom.hom)) (Over.mk B.hom.hom)
+    (Section.toHom b) ≫ (transfer S B).hom
+
+variable (f : Section (form S B)) (a : Section A)
+
+def reduce : Over.mk (𝟙 Γ.dom) ⟶ (ΠA.hom.hom).obj (Over.mk B.hom.hom) :=
+  Section.toHom f ≫ (transfer S B).inv
+
+lemma reduce_intro : reduce S (intro S b) =
+  IsPullback.adjEquiv (IsPullback.of_id_snd (f := A.hom.hom)) (Over.mk B.hom.hom)
+    (Section.toHom b) := by
+  simp [reduce, intro]
+
+def elim :
+    Over.mk a.left ⟶ Over.mk B.hom := by
+  refine Over.homMk (Hom.mk ?_) ?_
+  exact (Section.toHom a).left ≫
+    ((IsPullback.of_hasPullback ((ΠA.hom.hom).obj (Over.mk B.hom.hom)).hom A.hom.hom).sectionSnd'
+    (reduce S f) ≫ (adj A.hom.hom).counit.app (Over.mk B.hom.hom)).left
+  ext; simp only [Over.mk_left, Over.comp_left, Over.homMk_left,
+    Over.mk_hom, comp_hom, Category.assoc]
+  erw [Over.w, Over.w, Over.mk_hom, Category.comp_id]
+  rfl
+
+lemma compt (a : Section A) (b : Section B) :
+    (elim S (intro S b) a).left = a.left ≫ b.left := by
+  ext; simp
+  change _ = (Section.toHom a).left ≫ (Section.toHom b).left
+  dsimp only [elim, Over.homMk_left]
+  simp_rw [reduce_intro]
+  congr
+  rw [← Adjunction.homEquiv_symm_id]
+  convert IsPullback.adjEquiv_naturality_symm_left'
+    (IsPullback.of_id_snd (f := A.hom.hom))
+    ((IsPullback.adjEquiv _ (Over.mk (Ext.hom B).hom)) (Section.toHom b)) (𝟙 _)
+  simp only [Functor.id, Category.comp_id, Equiv.symm_apply_apply]
+
+end Pi
+
+variable [HasPullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] in
+open Pi in
+def Pi_type (S : Pi.Structure U) : Pi_type (U.Chains t) where
+  form B := form S B
+  intro b := intro S b
+  elim f a := elim S f a
+  compt a b := compt S a b
+
+section
+-- maybe it would be good to rewrite every isterminal to hasterminal
+-- and use the classical terminal throughout
+variable [HasPullbacks C] [LocallyCartesianClosed C] [HasTerminal C] (S : Empty.Structure U)
+
+namespace Empty
+
+variable (Γ : U.Chains (⊤_ C))
+
+instance : isTerminal (⊤_ C) where
+  is_terminal := terminalIsTerminal
+
+def form : Ext Γ :=
+  Ext.mk' Γ (terminal.from Γ.dom ≫ S.map)
+
+open LocallyCartesianClosed
+
+def form.obj_dom_isInitial' : IsInitial (Over.mk (form S Γ).hom.hom) :=
+  IsPullbackPreservesInitial (Ext.isPullbackLeft Γ (terminal.from Γ.dom) S.map) S.is_initial
+
+def form.obj_dom_isInitial : IsInitial (Over.mk (form S Γ).hom) := by
+  apply IsInitial.ofUniqueHom _ _
+  . intro Y
+    apply Over.homMk (Hom.mk ((form.obj_dom_isInitial' S Γ).to (Over.mk Y.hom.hom)).left) _
+    ext; simp; erw [Over.w]; rfl
+  . intro Y m
+    ext; simp
+    set m' : Over.mk (form S Γ).hom.hom ⟶ Over.mk Y.hom.hom := by
+      apply Over.homMk m.left.hom (by simp; erw [← comp_hom, Over.w]; rfl)
+    change m'.left = _
+    congr
+    apply (form.obj_dom_isInitial' S Γ).hom_ext
+
+variable {Γ}
+
+def elim₀ (A : Ext (form S Γ).obj) :
+    (Over.mk (𝟙 (form S Γ).obj)).left ⟶ (Over.mk (Ext.hom A)).left :=
+   ((form.obj_dom_isInitial S Γ).to (Over.mk (A.hom ≫ (form S Γ).hom))).left
+
+def elim (A : Ext (form S Γ).obj) : Section A := by
+  apply Over.homMk (elim₀ S A) _
+  dsimp
+  set e : Over.mk (form S Γ).hom ⟶ Over.mk (form S Γ).hom := by
+    refine Over.homMk (elim₀ S A ≫ A.hom) ?_
+    simp; apply Over.w
+  change e.left = (𝟙 Over.mk (form S Γ).hom).left
+  congr
+  apply (form.obj_dom_isInitial S Γ).hom_ext
+
+omit [HasPullbacks C] [LocallyCartesianClosed C] in
+lemma form_stable {Γ Γ' : U.Chains (⊤_ C)} (f : Γ' ⟶ Γ) :
+    form S Γ' = Ext.pullback (form S Γ) f := by
+  ext
+  all_goals
+  simp only [Ext.pullback, form, Ext.mk', Chains.cons', cons, ContextualCategory.pb, pb, cases_cons,
+      pb_cons]
+  rw [← Category.assoc]
+  congr 2
+  apply terminal.hom_ext
+
+variable {Γ Γ' : U.Chains (⊤_ C)} (f : Γ' ⟶ Γ)
+
+lemma elim_stable {Γ Γ' : U.Chains (⊤_ C)} (A : Ext (form S Γ).obj) (f : Γ' ⟶ Γ) :
+  elim S (Ext.pullback A (eqToHom (congrArg Ext.obj (form_stable S f)) ≫ ((form S Γ).pullbackFst f)))
+      = (elim S A).lift (eqToHom (congrArg Ext.obj (form_stable S f)) ≫ (form S Γ).pullbackFst f) := by
+  ext : 1
+  set e := elim S _
+  apply Over.IsInitial_hom_ext (form.obj_dom_isInitial S Γ')
+  . simp; rw [← Category.assoc]
+    change (e.left ≫ _) ≫ _ = _
+    erw [Over.w]
+    simp only [Over.mk_left, Over.mk_hom, Category.id_comp]
+  . simp; erw [← Category.assoc, Over.w]
+    simp only [Over.mk_hom, Category.id_comp]
+
+end Empty
+
+open Empty in
+def Empty_type (S : Empty.Structure U) : Empty_type (U.Chains (⊤_ C)) where
+  form := form S
+  elim := elim S
+  form_stable := form_stable S
+  elim_stable := elim_stable S
+
+end
+
+section
+
+def aux {C : Type*} [Category C] {P X Y Z : C}
+  {fst : P ⟶ X} {snd : P ⟶ Z} {f : X ⟶ Y} {g : Z ⟶ Y} [IsIso f] (is : IsPullback fst snd f g) :
+    P ≅ Z where
+  hom := snd
+  inv := is.sectionSnd (inv f) (IsIso.inv_hom_id _)
+  hom_inv_id := by
+    apply is.hom_ext
+    . simp; rw [← Category.assoc, ← is.w]; simp
+    . simp
+  inv_hom_id := by simp
+
+variable [HasTerminal C] (S : Unit.Structure U)
+
+namespace Unit
+
+variable (Γ : U.Chains (⊤_ C))
+
+def form : Ext Γ :=
+  Ext.mk' Γ (terminal.from Γ.dom ≫ S.map)
+
+instance : IsIso (U.snd S.map) where
+  out := by
+    use S.iso.inv.left
+    constructor
+    . have := Over.w S.iso.hom
+      simp at this
+      simp only [← this, ← Over.comp_left, S.iso.hom_inv_id, Over.id_left, Over.mk_left]
+    . exact Over.w S.iso.inv
+
+def intro' : Over.mk (𝟙 _) ≅ Over.mk (form S Γ).hom where
+  hom := Section.ofHom $ Over.homMk (aux (Ext.isPullbackLeft Γ (terminal.from Γ.dom) S.map)).inv
+    (Iso.inv_hom_id _)
+  inv := Over.homMk (form S Γ).hom
+  hom_inv_id := by
+    ext
+    simp [Section.ofHom, Section.equiv]
+    exact (aux _).inv_hom_id
+  inv_hom_id := by
+    ext
+    simp [Section.ofHom, Section.equiv]
+    exact (aux _).hom_inv_id
+
+def intro : Section (form S Γ) := (intro' S Γ).hom
+
+def intro'Left : (form S Γ).obj ≅ Γ where
+  hom := (form S Γ).hom
+  inv := (intro' S Γ).hom.left
+  hom_inv_id := by
+    change (Over.homMk (form S Γ).hom : Over.mk (Ext.hom (form S Γ)) ⟶ Over.mk (𝟙 Γ)).left ≫ _ = _
+    erw [← Over.comp_left, (intro' S Γ).inv_hom_id]
+    rfl
+  inv_hom_id := by
+    change _ ≫ (Over.homMk (form S Γ).hom : Over.mk (Ext.hom (form S Γ)) ⟶ Over.mk (𝟙 Γ)).left = _
+    erw [← Over.comp_left, (intro' S Γ).hom_inv_id]
+    rfl
+
+instance : IsIso (intro S Γ) := by dsimp [intro]; infer_instance
+
+instance : IsIso (form S Γ).hom := by change IsIso (intro'Left _ _).hom; infer_instance
+
+variable {Γ} (A : Ext (form S Γ).obj) (d : Over.mk (intro S Γ).left ⟶ Over.mk A.hom)
+
+def elim_tm : Section A := by
+  refine Over.homMk ((intro' S Γ).inv.left ≫ d.left) ?_
+  simp; erw [Over.w d]; simp only [Over.mk_left, Over.mk_hom, ← Over.comp_left]
+  erw [Iso.inv_hom_id]
+  rfl
+
+lemma elim_comm : (intro S Γ).left ≫ (elim_tm S A d).left = d.left := by
+  ext
+  simp only [Over.mk_left, elim_tm, Over.homMk_left, comp_hom, ← Category.assoc]
+  change (intro S Γ ≫ _).left.hom ≫ _ =  _
+  erw [(intro' S Γ).hom_inv_id]
+  simp only [Over.mk_left, Over.id_left, id_hom, Category.id_comp]
+
+lemma form_stable {Γ'} (f : Γ' ⟶ Γ) : form S Γ' = (form S Γ).pullback f := by
+  ext
+  all_goals
+  simp only [Ext.pullback, form, Ext.mk', Chains.cons', cons, ContextualCategory.pb, pb, cases_cons,
+        pb_cons]
+  rw [← Category.assoc]
+  congr 2
+  apply terminal.hom_ext
+
+lemma aux' {A B : Ext Γ} (eq : A = B) : A.hom = eqToHom (congrArg Ext.obj eq) ≫ B.hom := by
+  cases eq
+  simp only [eqToHom_refl, Category.id_comp]
+
+example {A B : Ext Γ} (eq : A.obj = B.obj) : A.hom = eqToHom eq ≫ B.hom := by
+  cases B
+  cases eq
+  simp only [eqToHom_refl, Category.id_comp]
+
+lemma intro_stable {Γ'} (f : Γ' ⟶ Γ) :
+    intro S Γ' ≫ eqToHom (congrArg (fun f ↦ Over.mk f.hom) (form_stable S f))
+      = (intro S Γ).lift f := by
+  change (intro' S Γ').hom ≫ _ = _
+  rw [← Iso.eq_inv_comp]
+  dsimp [intro']
+  ext : 1
+  simp
+  have : (form S Γ').hom  =
+    eqToHom (congrArg Ext.obj $ form_stable S f) ≫ ((form S Γ).pullback f).hom := by
+      apply aux' (form_stable S f)
+  simp only [this, Category.assoc, aux, Category.comp_id]
+  dsimp only [Section.lift, IsPullback.sectionSnd', Over.homMk_left]
+  conv => left; rw [← Category.comp_id (eqToHom _)]
+  congr
+  convert ((aux $ (form S Γ).pullbackIsPullback f).hom_inv_id).symm
+  simp [aux]
+  congr
+  apply (IsIso.inv_eq_of_hom_inv_id (intro'Left _ _).hom_inv_id).symm
 
 
 
-end ContextualStrucutre
-
-end Chain
-
-end Universe
+end Unit
+end

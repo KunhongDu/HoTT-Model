@@ -1,8 +1,5 @@
-import Mathlib.CategoryTheory.Closed.Cartesian
-import Mathlib.CategoryTheory.Limits.Constructions.BinaryProducts
 import Mathlib.CategoryTheory.Adjunction.Over
-import Mathlib.CategoryTheory.Limits.Shapes.CommSq
-import Mathlib.Tactic.ApplyFun
+import Mathlib.CategoryTheory.Limits.Shapes.Pullback.CommSq
 
 namespace CategoryTheory
 
@@ -10,18 +7,19 @@ open Limits Over
 
 universe v u
 
-class LocallyCartesianClosed (C : Type u) [CategoryTheory.Category.{v, u} C] [CategoryTheory.Limits.HasPullbacks C] where
+class LocallyCartesianClosed (C : Type u) [CategoryTheory.Category.{v, u} C]
+    [CategoryTheory.Limits.HasPullbacks C] where
   DProd {X Y : C} (f : X ⟶ Y) : Over X ⥤ Over Y
-  adj {X Y : C} (f : X ⟶ Y) : baseChange f ⊣ DProd f
+  adj {X Y : C} (f : X ⟶ Y) : Over.pullback f ⊣ DProd f
 
 namespace LocallyCartesianClosed
 
-notation f"*" => baseChange f
+notation f"*" => Over.pullback f
 notation "Π"f => DProd f
 notation "Σ"f => Over.map f
 
-variable {C : Type u} [CategoryTheory.Category.{v, u} C] [CategoryTheory.Limits.HasPullbacks C] [LocallyCartesianClosed C]
-
+variable {C : Type u} [CategoryTheory.Category.{v, u} C] [CategoryTheory.Limits.HasPullbacks C]
+  [LocallyCartesianClosed C]
 
 noncomputable section
 

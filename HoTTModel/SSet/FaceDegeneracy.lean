@@ -45,8 +45,8 @@ lemma FinTransfer.comm_succAbove {h : m + 1 = n + 1} {h' : m = n} (i : Fin (m + 
 
 lemma FinTransfer.comm_succAbove' {h : m + 1 = n + 1} {h' : m = n} (i : Fin (m + 1)) :
     (h.FinTransfer i).succAbove = h.FinTransfer ∘ i.succAbove ∘ h'.FinTransfer.symm := by
-  rw [← Function.comp_assoc, ← FinTransfer.comm_succAbove,
-      Function.comp_assoc, Equiv.self_comp_symm, comp_id]
+  rw [← Function.comp.assoc, ← FinTransfer.comm_succAbove,
+      Function.comp.assoc, Equiv.self_comp_symm, comp_id]
 
 lemma FinTransfer.comm_predAbove {h : m = n} {h' : m + 1 = n + 1} (i : Fin m) :
     (h.FinTransfer i).predAbove  ∘ h'.FinTransfer = h.FinTransfer ∘ i.predAbove := by
@@ -54,8 +54,8 @@ lemma FinTransfer.comm_predAbove {h : m = n} {h' : m + 1 = n + 1} (i : Fin m) :
 
 lemma FinTransfer.comm_predAbove' {h : m = n} {h' : m + 1 = n + 1} (i : Fin m) :
     (h.FinTransfer i).predAbove = h.FinTransfer ∘ i.predAbove ∘ h'.FinTransfer.symm := by
-  rw [← Function.comp_assoc, ← FinTransfer.comm_predAbove,
-      Function.comp_assoc, Equiv.self_comp_symm, comp_id]
+  rw [← Function.comp.assoc, ← FinTransfer.comm_predAbove,
+      Function.comp.assoc, Equiv.self_comp_symm, comp_id]
 
 end FinTransfer
 
@@ -100,8 +100,9 @@ lemma transport_function (d : Face n k) {e₁ : n = n'} {e₂ : k = k'}  :
       simp [function, transport]
       have := @hk k d.head (Eq.refl _)
       rw [head_transport] at this
-      rw [this, Function.comp_assoc, ← Function.comp_assoc (g := succAbove _),
-          ← Function.comp_assoc (f := succAbove _)]
+      rw [this]
+      change (succAbove _ ∘ ⇑(Eq.FinTransfer _)) ∘ d.head.function ∘ _
+        = (⇑(Eq.FinTransfer _) ∘ succAbove _) ∘ d.head.function ∘ _
       congr! 1
       ext i
       erw [FinTransfer.comm_succAbove' (h' := by rw [e₁, FinTransfer.val, val_last])]
@@ -434,9 +435,9 @@ def factor'_spec {m k : ℕ} (f : Fin m → Fin (m + k + 1)) (j : Fin (m + k + 1
           have := factor_spec (transp'.toFun ∘ f) (transp'.toFun j) (by simp; exact hj)
           apply_fun fun x ↦ transp'.invFun ∘ x at this
           simp at this
-          simp [← Function.comp_assoc, Equiv.symm_comp_self] at this
+          simp [← Function.comp.assoc, Equiv.symm_comp_self] at this
           conv => lhs; rw [this]
-          conv => rhs; rw [← Function.comp_assoc]
+          conv => rhs; rw [← Function.comp.assoc]
           congr! 1
           sorry
 -/
@@ -573,8 +574,8 @@ lemma transport_function (d : Degeneracy n k) {e₁ : n = n'} {e₂ : k = k'}  :
       simp [function, transport]
       have := @hk k d.head (Eq.refl _)
       rw [head_transport] at this
-      rw [this, Function.comp_assoc, Function.comp_assoc, Function.comp_assoc,
-          ← Function.comp_assoc (g := function _), ← Function.comp_assoc (g := function _)]
+      rw [this, Function.comp.assoc, Function.comp.assoc, Function.comp.assoc,
+          ← Function.comp.assoc (g := function _), ← Function.comp.assoc (g := function _)]
       congr! 1
       ext i
       rw [FinTransfer.comm_predAbove' (h' := by rw [e₁])]
@@ -775,7 +776,7 @@ lemma reverse.is_leftInv {n k : ℕ} (l : Face (n + 1) k) :
       rw [← Degeneracy.head_cons l.reverse, cons_function l.head (l (last k)),
           Degeneracy.cons_function]
       simp [cons, Degeneracy.cons, reverse]
-      rw [Function.comp_assoc, ← Function.comp_assoc (predAbove _)]
+      rw [Function.comp.assoc, ← Function.comp.assoc (predAbove _)]
       simp [zero_predAbove_predAbove_succAbove' (n + 1 + k) (by norm_num) (l (last k))]
       exact hk l.head
 
@@ -1056,7 +1057,7 @@ lemma Option.comp.assoc.{u} {α β φ δ : Type u} (f : Option (φ → δ)) (g :
     . simp only [comp]
     . cases h
       . simp only [comp]
-      . simp only [comp, Option.some.injEq]; apply Function.comp_assoc
+      . simp only [comp, Option.some.injEq]; rfl
 
 lemma Option.comp_eq_none_iff {f : Option (φ → δ)} {g : Option (β → φ)} :
     f ● g = none ↔ f = none ∨ g = none := by
@@ -1372,7 +1373,7 @@ example : have eq : n + 1 + k = n + k + 1 := by rw [add_assoc, add_comm 1]; rfl
           conv => rhs; rw [← Face.head_cons l,
                            Face.cons_function, ← Option.some_comp_some, Face.head_cons]
           congr
-          rw [← Function.comp_assoc,
+          rw [← Function.comp.assoc,
               predAbove_comp_succAbove_eq_castSucc_or_eq_succ _ _ (eq_of_not_lt_of_not_lt h.1 h.2)]
           rfl
         . simp [function_comp₀, Option.predAbove', Option.comp_none]
@@ -1383,12 +1384,12 @@ example : have eq : n + 1 + k = n + k + 1 := by rw [add_assoc, add_comm 1]; rfl
           conv =>
             rhs
             rw [← Face.head_cons l, Face.cons_function,
-                ← Function.comp_assoc, ← Function.comp_assoc]
+                ← Function.comp.assoc, ← Function.comp.assoc]
             simp [Face.cons]
-          rw [← Function.comp_assoc _ _ l.head.function,
-              ← Function.comp_assoc]
+          rw [← Function.comp.assoc _ _ l.head.function,
+              ← Function.comp.assoc]
           congr! 1
-          rw [Function.comp_assoc]
+          rw [Function.comp.assoc]
           ext i
           simp [FinTransfer.val]
           rw [FinTransfer.comm_succAbove'
@@ -1403,12 +1404,12 @@ example : have eq : n + 1 + k = n + k + 1 := by rw [add_assoc, add_comm 1]; rfl
           conv =>
             rhs
             rw [← Face.head_cons l, Face.cons_function,
-                ← Function.comp_assoc, ← Function.comp_assoc]
+                ← Function.comp.assoc, ← Function.comp.assoc]
             simp [Face.cons]
-          rw [← Function.comp_assoc _ _ l.head.function,
-              ← Function.comp_assoc]
+          rw [← Function.comp.assoc _ _ l.head.function,
+              ← Function.comp.assoc]
           congr! 1
-          rw [Function.comp_assoc]
+          rw [Function.comp.assoc]
           ext i
           simp [FinTransfer.val]
           rw [FinTransfer.comm_succAbove'
@@ -1752,7 +1753,7 @@ example (d : Face (n + m) k) (s : Degeneracy (n + k) m) :
             split_ifs with h₂
             . simp [Face.toOpt] at h₂
             . simp [Degeneracy.function]
-              rw [Function.comp_assoc, ← Option.some_comp_some]
+              rw [Function.comp.assoc, ← Option.some_comp_some]
               -- step 1. swap `(s last)` with `d`
               erw [step1
                   (eq := by erw [add_assoc, add_comm 1, add_assoc n, add_comm m, ← add_assoc])

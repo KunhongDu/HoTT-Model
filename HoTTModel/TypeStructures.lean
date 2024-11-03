@@ -1,159 +1,364 @@
-import HoTTModel.LocallyCartesionClosed
+import HoTTModel.LCC
 import HoTTModel.Universe
-import HoTTModel.Lemmas.Limits
+import Mathlib.CategoryTheory.Square
 
 noncomputable section
 
-open CategoryTheory Limits List ContextualCategory LocallyCartesianClosed
+open CategoryTheory Limits List LocallyCartesianClosed
 
-variable {C : Type u} [CategoryTheory.Category.{v, u} C] [HasPullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] {t : C} (ht : IsTerminal t)
-
+variable {C : Type u} [CategoryTheory.Category.{v, u} C]
 -- binary product follows from pullback + terminal object, but I'll assume this instance for now
 
 namespace Universe
-
 variable (U : Universe C)
+set_option linter.unusedSectionVars false
+
+section
+variable [HasPullbacks C] [LocallyCartesianClosed C] {X : C} (f : X ⟶ U.down)
+
+def isoPullback :
+    U.pt f ≅ pullback U.hom f :=
+  (U.isPullback f).isoPullback
+
+def isoPullback_flip :
+    U.pt f ≅ pullback f U.hom :=
+  (U.isPullback f).flip.isoPullback
+
+def isoPullback.map :
+    Over (U.pt f) ⥤ Over (pullback U.hom f) :=
+  Over.map (U.isoPullback f).hom
+
+def isoPullback.map_inv :
+    Over (pullback U.hom f) ⥤  Over (U.pt f) :=
+  Over.map (U.isoPullback f).inv
+
+section
+variable {X Y: C} {fst : Y ⟶ U.up} {snd : Y ⟶ X} {f : X ⟶ U.down}
+  (is : IsPullback fst snd U.hom f)
+
+@[simp]
+def isoIsPullback : Y ≅ U.pt f :=
+  is.isoIsPullback (U.isPullback f)
+
+@[simp]
+def isoOverSnd :
+    Over.mk snd ≅ U.snd' f :=
+  Over.isoMk ((is.isoIsPullback (U.isPullback f)))
+
+@[simp]
+def isoOverFst :
+    Over.mk fst ≅ U.fst' f :=
+  Over.isoMk (is.isoIsPullback (U.isPullback f))
+
+end
+
+section
+-- pullback along universe
+
+def fst'_isoPullback :
+    U.fst' f ≅  (U.hom*).obj (Over.mk f) :=
+  Over.isoMk (U.isoPullback_flip f) (U.isPullback f).flip.isoPullback_hom_snd
+
+@[simps]
+def pullback_map : Over U.down ⥤ Over U.up where
+  obj f := U.fst' f.hom
+  map {f g} h := (U.fst'_isoPullback f.hom).hom ≫ (U.hom)*.map h ≫
+      (U.fst'_isoPullback g.hom).inv
+  map_id f := by
+    ext; simp [fst'_isoPullback, isoPullback_flip]
+    apply (U.isPullback f.hom).flip.hom_ext
+    <;> simp [Universe.isoPullback]
+  map_comp f g := by ext; simp
+
+variable {U} in
+lemma pullback_map.map_left_eq_lift {X Y : Over U.down} (f : X ⟶ Y) :
+    (U.pullback_map.map f).left =
+      (U.isPullback Y.hom).lift (U.fst X.hom) (U.snd X.hom ≫ f.left)
+        (by simp only [(U.isPullback X.hom).w, Category.assoc, Over.w]) := by
+  apply (U.isPullback Y.hom).hom_ext
+  <;> simp [fst'_isoPullback, isoPullback_flip]
+
+lemma pullback_map.upperSquareW {X Y : Over U.down} (f : X ⟶ Y) :
+    (U.pullback_map.map f).left ≫ U.snd Y.hom = U.snd X.hom ≫ f.left := by
+  rw [map_left_eq_lift, IsPullback.lift_snd]
+
+def pullback_map.upperSquareIsPullback {X Y : Over U.down} (f : X ⟶ Y) :
+    IsPullback (U.pullback_map.map f).left (U.snd X.hom) (U.snd Y.hom) f.left where
+  w := pullback_map.upperSquareW _ f
+  isLimit' := ⟨by
+      apply Limits.topSquareIsPullback (t₁ := (U.isPullback Y.hom).cone)
+        (t₂ := PullbackCone.mk _ _ (pullback_map.upperSquareW U f)) rfl
+        (U.isPullback Y.hom).isLimit
+      convert (U.isPullback X.hom).isLimit
+      . exact Over.w f
+      . dsimp only [IsPullback.cone, CommSq.cone, PullbackCone.pasteVert]
+        simp [fst'_isoPullback, isoPullback_flip]
+        congr 1
+        . exact Over.w f
+        . simp only [Over.w, heq_eq_eq]⟩
+
+def pullback_mapIsoPullback : U.pullback_map ≅ Over.pullback U.hom where
+  hom :={
+    app := fun f ↦ (U.fst'_isoPullback f.hom).hom
+    naturality := by intros; simp
+  }
+  inv := {
+    app := fun f ↦ (U.fst'_isoPullback f.hom).inv
+    naturality := by intros; simp
+  }
+  hom_inv_id := by ext; simp
+  inv_hom_id := by ext; simp
+
+def pullback_adj := (adj U.hom).ofNatIsoLeft U.pullback_mapIsoPullback.symm
+
+abbrev pullback_adjEquiv := U.pullback_adj.homEquiv
+
+lemma pullback_adj.homEquiv_naturality_right
+  {X : Over U.down} {Y Y' : Over U.up} (f : U.pullback_map.obj X ⟶ Y) (g : Y ⟶ Y') :
+    (U.pullback_adj.homEquiv X Y') (f ≫ g) = (U.pullback_adj.homEquiv X Y) f ≫ (ΠU.hom).map g :=
+  U.pullback_adj.homEquiv_naturality_right f g
+
+lemma pullback_adj.homEquiv_naturality_right_symm
+  {X : Over U.down} {Y Y' : Over U.up} (f : X ⟶ (ΠU.hom).obj Y) (g : Y ⟶ Y') :
+    (U.pullback_adj.homEquiv X Y').symm (f ≫ (ΠU.hom).map g) =
+      (U.pullback_adj.homEquiv X Y).symm f ≫ g :=
+  U.pullback_adj.homEquiv_naturality_right_symm f g
+
+end
+/-
+def fst_homEquiv (g : Over U.up) :
+    (U.fst' f ⟶ g) ≃ ((U.hom*).obj (Over.mk f) ⟶ g) :=
+  (U.fst'_isoPullback f).homFromEquiv
+
+
+variable {f} in
+lemma fst_homEquiv_naturality {g h : Over U.up} (i : U.fst' f ⟶ g) (j : g ⟶ h) :
+    U.fst_homEquiv f h (i ≫ j) =  U.fst_homEquiv f g i ≫ j := by
+  simp only [fst_homEquiv, Iso.homFromEquiv_apply, Category.assoc]
+
+def fst_adjEquiv (g : Over U.up) :
+    (U.fst' f ⟶ g) ≃ ((Over.mk f) ⟶ (Π(U.hom)).obj g) :=
+  (U.fst_homEquiv f g).trans ((adj U.hom).homEquiv (Over.mk f) g)
+
+lemma fst_adjEquiv_naturality {g h : Over U.up} (i : U.fst' f ⟶ g) (j : g ⟶ h) :
+    U.fst_adjEquiv f h (i ≫ j) = U.fst_adjEquiv f g i ≫ (Π(U.hom)).map j := by
+  simp only [fst_adjEquiv, Equiv.trans_apply]
+  rw [U.fst_homEquiv_naturality i j]
+  exact Adjunction.homEquiv_naturality_right _ _ _
+
+lemma fst_adjEquiv_naturality_symm {g h : Over U.up} (i : Over.mk f ⟶ (Π(U.hom)).obj g)
+  (j : g ⟶ h) :
+    (U.fst_adjEquiv f h).symm (i ≫ (Π(U.hom)).map j) = (U.fst_adjEquiv f _).symm i ≫ j := by
+  simp only [Equiv.symm_apply_eq, fst_adjEquiv_naturality,
+    eq_self_iff_true, Equiv.apply_symm_apply]
+
+-/
+
+/-
+section snd
+-- pullback of universe
+
+def snd'_isoPullback :
+    U.snd' f ≅  (f*).obj U.over :=
+  Over.isoMk (U.isoPullback f) (U.isPullback f).isoPullback_hom_snd
+
+def snd_homEquiv (g : Over X) :
+    (U.snd' f ⟶ g) ≃ ((f*).obj U.over ⟶ g) :=
+  (U.snd'_isoPullback f).homFromEquiv
+
+variable {f} in
+lemma snd_homEquiv_naturality {g h : Over X} (i : U.snd' f ⟶ g) (j : g ⟶ h) :
+    U.snd_homEquiv f h (i ≫ j) =  U.snd_homEquiv f g i ≫ j := by
+  simp only [snd_homEquiv, Iso.homFromEquiv_apply, Category.assoc]
+
+def snd_adjEquiv (g : Over X) :
+    (U.snd' f ⟶ g) ≃ (U.over ⟶ (Πf).obj g) :=
+  (U.snd_homEquiv f g).trans ((adj f).homEquiv U.over g)
+
+lemma snd_adjEquiv_naturality {g h : Over X} (i : U.snd' f ⟶ g) (j : g ⟶ h) :
+    U.snd_adjEquiv f h (i ≫ j) = U.snd_adjEquiv f g i ≫ (Πf).map j := by
+  simp only [snd_adjEquiv, Equiv.trans_apply]
+  rw [U.snd_homEquiv_naturality i j]
+  exact Adjunction.homEquiv_naturality_right _ _ _
+
+lemma snd_adjEquiv_naturality_symm {g h : Over X} (i : U.over ⟶ (Πf).obj g) (j : g ⟶ h) :
+    (U.snd_adjEquiv f h).symm (i ≫ (Πf).map j) = (U.snd_adjEquiv f _).symm i ≫ j := by
+  simp only [Equiv.symm_apply_eq, snd_adjEquiv_naturality,
+    eq_self_iff_true, Equiv.apply_symm_apply]
+
+end snd
+-/
+
+section
+-- pullback as a functor along
+/-
+`   pt → U.up  `
+`    ↓      ↓   `
+`Y → X → U.down`
+-/
+
+variable {Y : C} (g : Y ⟶ X)
+
+def isPullbackComp :
+    IsPullback ((U.isPullback f).lift (U.fst (g ≫ f)) (U.snd (g ≫ f) ≫ g) (by simp [U.comm]))
+      (U.snd (g ≫ f)) (U.snd f) g := sorry
+
+def pullbackSnd'_isoPullback :
+    U.pt (g ≫ f) ≅  pullback (U.snd f) g :=
+  (U.isPullbackComp f g).isoPullback
+
+def pullbackSnd'_isoPullback_snd' :
+    U.snd' (g ≫ f) ≅  (g*).obj (U.snd' f) :=
+  Over.isoMk (U.pullbackSnd'_isoPullback f g) (U.isPullbackComp f g).isoPullback_hom_snd
 
 namespace Pi
+variable [HasBinaryProducts C] {t : C} (ht : IsTerminal t)
 
-abbrev Op := (Π(U.map)).obj (CategoryTheory.Over.mk U.Proj₂)
+abbrev op := (Π(U.hom)).obj U.proj₂'
 
-abbrev Obj := (Op U).left
+abbrev obj := (op U).left
 
-abbrev Hom : Obj U ⟶ U.obj := (Op U).hom
+abbrev hom : obj U ⟶ U.down := (op U).hom
 
-abbrev AGen : C := U.pt (Op U).hom
+abbrev Gen₁ : C := U.pt (hom U)
 
-abbrev AGenFst : AGen U ⟶ U.obj' := U.fst (Hom U)
+abbrev Gen₁.fst : Gen₁ U ⟶ U.up := U.fst (hom U)
 
-abbrev AGenSnd : AGen U ⟶ Obj U := U.snd (Hom U)
+abbrev Gen₁.snd : Gen₁ U ⟶ obj U := U.snd (hom U)
 
-abbrev BGenHom : AGen U ⟶ U.obj := ((LocallyCartesianClosed.isLimit_equiv (U.pullback (Hom U)).flip (Over.mk U.Proj₂)).invFun (𝟙 _)).left ≫ U.Proj₁
+abbrev Gen₁.fst' : Over U.up := U.fst' (hom U)
 
-abbrev BGen : C := U.pt (BGenHom U)
+abbrev Gen₁.snd' : Over (obj U) := U.snd' (hom U)
 
-abbrev BGenFst : BGen U ⟶ U.obj' := U.fst (BGenHom U)
+abbrev Gen₂.hom₀ : Gen₁.fst' U ⟶ U.proj₂' := (U.pullback_adj.counit).app U.proj₂'
 
-abbrev BGenSnd : BGen U ⟶ AGen U := U.snd (BGenHom U)
+abbrev Gen₂.hom : Gen₁ U ⟶ U.down := (Gen₂.hom₀ U).left ≫ U.proj₁
+
+abbrev Gen₂.hom' : Over U.down := Over.mk (Gen₂.hom U)
+
+abbrev Gen₂ : C := U.pt (Gen₂.hom U)
+
+abbrev Gen₂.fst : Gen₂ U ⟶ U.up := U.fst (Gen₂.hom U)
+
+abbrev Gen₂.snd : Gen₂ U ⟶ Gen₁ U := U.snd (Gen₂.hom U)
+
+abbrev Gen₂.fst' : Over U.up := U.fst' (Gen₂.hom U)
+
+abbrev Gen₂.snd' : Over (Gen₁ U) := U.snd' (Gen₂.hom U)
 
 structure Structure where
-  map : (Op U).left ⟶ U.obj
-  Eq : (Π(AGenSnd U)).obj (Over.mk (BGenSnd U)) ≅ Over.mk (U.snd map)
+  hom : (op U).left ⟶ U.down
+  iso : (Π(Gen₁.snd U)).obj (Gen₂.snd' U) ≅ U.snd' hom
 
--- want to prove def 1.4.1 KLV
--- for the symbols below, see a scipt paper with `TTPI` in right upper corner
-variable {U : Universe C} {Γ A B : C}
-{f : Γ ⟶ U.obj} {g : A ⟶ U.obj'} {h : A ⟶ Γ} (pb : IsPullback g h U.map f)
-{f' : A ⟶ U.obj} {g' : B ⟶ U.obj'} {h' : B ⟶ A} (is' : IsPullback g' h' U.map f')
+-- the iso means, we would later need to do pullback along `Gen₁.snd`
+-- but since the `Gen₁.snd` is a pullback of the universe
+-- we can choose the pullbacks as ones along compositions!!!!
 
-def ind_f' (f' : A ⟶ U.obj) : Over.mk f ⟶ Op U := (LocallyCartesianClosed.isLimit_equiv pb.flip (Over.mk U.Proj₂)).toFun <| Over.homMk (U := Over.mk g) (V := Over.mk U.Proj₂) (prod.lift f' g) (by simp)
+section
 
-def ind_f (f' : A ⟶ U.obj) : Γ ⟶ Obj U := (ind_f' pb f').left
+variable {U} {Γ A : C} (δ : Γ ⟶ U.down) (δ' : U.pt δ ⟶ U.down)
 
--- better write a lift for all pullback, edit aux2 and isLimit_equiv in the other file
+def form₀' : Over.mk δ ⟶ op U :=
+  (U.pullback_adjEquiv (Over.mk δ) U.proj₂') (Over.homMk (prod.lift δ' (U.fst δ)))
 
-abbrev aux {X Y Z Z' W W': C} {f : X ⟶ Y}  {g : Z ⟶ Y} {g' : Z' ⟶ Y}
-{u : W ⟶ Z} {u' : W' ⟶ Z'} {v : W ⟶ X} {v' : W' ⟶ X}
-(pb : IsPullback u v g f) (pb' : IsPullback u' v' g' f)
-(i : Over.mk g ⟶ Over.mk g') : W ⟶ W' := PullbackCone.IsLimit.lift pb'.isLimit (u ≫ i.left) v (by simp [← pb.w]; congr; exact Over.w i)
+abbrev form₀ : Γ ⟶ obj U := (form₀' δ δ').left
 
-abbrev aux_fst {X Y Z Z' W W': C} {f : X ⟶ Y}  {g : Z ⟶ Y} {g' : Z' ⟶ Y}
-{u : W ⟶ Z} {u' : W' ⟶ Z'} {v : W ⟶ X} {v' : W' ⟶ X}
-(pb : IsPullback u v g f) (pb' : IsPullback u' v' g' f)
-(i : Over.mk g ⟶ Over.mk g') : (aux pb pb' i) ≫ u' = u ≫ i.left := CategoryTheory.Limits.PullbackCone.IsLimit.lift_fst _ _ _ _
+lemma form₀_comp_hom : form₀ δ δ' ≫ hom U = δ := by
+  simp only [Over.w, Over.mk_hom]
 
-abbrev aux_snd {X Y Z Z' W W': C} {f : X ⟶ Y}  {g : Z ⟶ Y} {g' : Z' ⟶ Y}
-{u : W ⟶ Z} {u' : W' ⟶ Z'} {v : W ⟶ X} {v' : W' ⟶ X}
-(pb : IsPullback u v g f) (pb' : IsPullback u' v' g' f)
-(i : Over.mk g ⟶ Over.mk g') : (aux pb pb' i) ≫ v' = v := CategoryTheory.Limits.PullbackCone.IsLimit.lift_snd _ _ _ _
+def form₁' : U.fst' δ ⟶ Gen₁.fst' U := U.pullback_map.map (form₀' δ δ')
 
--- several comm condition on aux
+abbrev form₁ : U.pt δ ⟶ Gen₁ U := (form₁' δ δ').left
 
-def ind_g (f' : A ⟶ U.obj) : A ⟶ AGen U := aux pb.flip (U.pullback (Hom U)).flip (ind_f' pb f')
+lemma form₁'_comp_Gen₂hom₀ :
+    form₁' δ δ' ≫ Gen₂.hom₀ U = Over.homMk (prod.lift δ' (U.fst δ)) := by
+  erw [← U.pullback_adj.homEquiv_counit]
+  simp [form₀', Equiv.symm_apply_apply]
 
-lemma ind_comm' (f' : A ⟶ U.obj) : (ind_g pb f') ≫ AGenSnd U = h ≫ (ind_f pb f') := aux_fst pb.flip _ _
+lemma form₁_comp_Gen₂hom₀_left :
+    form₁ δ δ' ≫ (Gen₂.hom₀ U).left = prod.lift δ' (U.fst δ) :=
+  congrArg CommaMorphism.left (form₁'_comp_Gen₂hom₀ δ δ')
 
-lemma eq_g : (ind_g pb f') ≫ AGenFst U = g := aux_snd pb.flip _ _
+lemma form₁_comp_Gen₂hom :
+    form₁ δ δ' ≫ Gen₂.hom U = δ' := by
+  simp [Gen₂.hom, ← Category.assoc, form₁_comp_Gen₂hom₀_left]
 
-lemma eq_f : (ind_f pb f') ≫ Hom U = f := by simp [ind_f]
+abbrev form₁'' : Over.mk δ' ⟶ Gen₂.hom' U :=
+  Over.homMk (form₁ δ δ') (form₁_comp_Gen₂hom _ _)
 
-def Limits.leftSquareIsPullback' {C : Type u} [Category.{v, u} C] {X₁ X₂ X₃ Y₁ Y₂ Y₃ : C}
-  (f₁ : X₁ ⟶ X₂) (f₂ : X₂ ⟶ X₃) (g₁ : Y₁ ⟶ Y₂) (g₂ : Y₂ ⟶ Y₃) (i₁ : X₁ ⟶ Y₁) (i₂ : X₂ ⟶ Y₂) (i₃ : X₃ ⟶ Y₃)
-  (h₁ : f₁ ≫ i₂ = i₁ ≫ g₁) (h₂ : f₂ ≫ i₃ = i₂ ≫ g₂) (H : IsLimit (PullbackCone.mk f₂ i₂ h₂))
-  (H' : IsLimit (PullbackCone.mk (f₁ ≫ f₂) i₁ (show (f₁ ≫ f₂) ≫ i₃ = i₁ ≫ g₁ ≫ g₂  by
-            rw [← Category.assoc, ← h₁, Category.assoc, h₂, Category.assoc]))) : IsLimit (PullbackCone.mk f₁ i₁ h₁) := by
-  apply PullbackCone.isLimitOfFlip
-  apply leftSquareIsPullback f₁ f₂ g₁ g₂ i₁ i₂ i₃ h₁.symm h₂.symm
-  apply PullbackCone.isLimitOfFlip
-  apply H
-  apply PullbackCone.isLimitOfFlip
-  apply H'
+def form₂' : U.fst' δ' ⟶ Gen₂.fst' U := U.pullback_map.map (form₁'' δ δ')
 
-abbrev aux2 {X Y Z W : C} {f f' : X ⟶ Y}  {g g': Z ⟶ Y} {fst fst' : W ⟶ X} {snd snd' : W ⟶ Z}
-(comm : fst ≫ f = snd ≫ g) (h : IsLimit <| PullbackCone.mk _ _ comm) (h₁ : f' = f) (h₂ : g' = g)
-(h₃ : fst' = fst) (h₄ : snd' = snd) : IsLimit <| PullbackCone.mk _ _ (show (fst' ≫ f' = snd' ≫ g') by rw [h₁, h₂, h₃, h₄, comm]) := by
-  convert h
+abbrev form₂ : U.pt δ' ⟶ Gen₂ U := (form₂' δ δ').left
 
-def ispb : IsLimit <| PullbackCone.mk _ _ (ind_comm' pb f') := by
-  apply Limits.leftSquareIsPullback' (ind_g pb f') (AGenFst U) (ind_f pb f') (Hom U) h (AGenSnd U) U.map _ _ _ _
-  apply (U.pullback _).w
-  apply (U.pullback _).isLimit
-  simp_rw [eq_g]
-  apply aux2 pb.w pb.isLimit rfl (eq_f _) rfl rfl
-  -- covert does not work here, it worked before though
+def form₁.isPullback :
+    IsPullback (form₁ δ δ') (U.snd δ) (Gen₁.snd U) (form₀ δ δ') :=
+  pullback_map.upperSquareIsPullback _ (form₀' δ δ')
 
-#check (IsPullback.Iso_of_pullback pb).hom ≫ ind_g pb f'
-#check (IsPullback.Iso_of_pullback (U.pullback (Hom U))).inv
-#check ((U.map*).map (ind_f' pb f')).left
-#simp => ((U.map*).obj (CategoryTheory.Over.mk f)).left ⟶ ((U.map*).obj (Op U)).left
-#check (IsPullback.Iso_of_pullback pb.flip).hom ≫ ind_g pb f' ≫ (IsPullback.Iso_of_pullback (U.pullback (Hom U)).flip).inv
+def form₂.isPullback :
+    IsPullback (form₂ δ δ') (U.snd δ') (Gen₂.snd U) (form₁ δ δ') :=
+  pullback_map.upperSquareIsPullback _ (form₁'' δ δ')
+end
 
+section
 
--- proved!!!!
-lemma auxxx : ind_g pb f' = (IsPullback.Iso_of_pullback pb.flip).inv ≫ ((U.map*).map (ind_f' pb f')).left ≫ (IsPullback.Iso_of_pullback (U.pullback (Hom U)).flip).hom := by
-  dsimp [ind_g, aux]
-  symm
-  have := h ≫ (ind_f' pb f').left
-  apply Limits.PullbackCone.IsLimit.lift_eq (U.pullback (Hom U)).flip.isLimit (h ≫ (ind_f' pb f').left) g ?_ ((IsPullback.Iso_of_pullback pb.flip).inv ≫ ((U.map*).map (ind_f' pb f')).left ≫ (IsPullback.Iso_of_pullback (U.pullback (Hom U)).flip).hom) ?_ ?_
-  simp [pb.w]
-  rw [Category.assoc, Iso.inv_comp_eq, ← Category.assoc _ h, IsPullback.Iso_of_pullback_hom_fst]
-  rw [Category.assoc]
-  simp
-  simp only [IsPullback.Iso_of_pullback_hom_fst, limit.lift_π, PullbackCone.mk_pt, PullbackCone.mk_π_app]
-  simp
-  rw [IsPullback.Iso_of_pullback_hom_snd]
-  simp only [limit.lift_π, PullbackCone.mk_pt, PullbackCone.mk_π_app, Category.comp_id]
-  rw [IsPullback.Iso_of_pullback_inv_snd]
+variable {U} {Γ A B : C} {δ : Γ ⟶ U.down} {γ : A ⟶ U.up} {π : A ⟶ Γ}
+  {δ' : A ⟶ U.down} {γ' : B ⟶ U.up} {π' : B ⟶ A}
+  (is : IsPullback γ π U.hom δ) (is' : IsPullback γ' π' U.hom δ')
 
+namespace IsPullback
 
-#check (IsPullback.Iso_of_pullback pb).hom ≫ prod.lift f' g
-#check ((U.map*).map (ind_f' pb f') ≫ (adj U.map).counit.app (CategoryTheory.Over.mk U.Proj₂)).left
-#simp => ((U.map*).obj (CategoryTheory.Over.mk f)).left ⟶
-  ((𝟭 (CategoryTheory.Over U.obj')).obj (CategoryTheory.Over.mk U.Proj₂)).left
+def pullbackAux : IsPullback γ' (π' ≫ (U.isoIsPullback is).hom) U.hom
+  ((U.isoIsPullback is).inv ≫ δ') := by
+  apply is'.of_iso (Iso.refl _) (Iso.refl _) (U.isoIsPullback is) (Iso.refl _)
+  <;> simp
 
-lemma llala : ((U.map*).map (ind_f' pb f') ≫ (adj U.map).counit.app (CategoryTheory.Over.mk U.Proj₂)).left = (IsPullback.Iso_of_pullback pb.flip).hom ≫ prod.lift f' g := by
-  rw [← Adjunction.homEquiv_counit]
-  dsimp [ind_f', isLimit_equiv]
-  simp
+def form₀' (_ : IsPullback γ' π' U.hom δ') : (Over.mk δ ⟶ op U) :=
+  Pi.form₀' δ ((U.isoIsPullback is).inv ≫ δ')
 
--- for the proof find TTP2
-lemma aaa : ind_g pb f' ≫ ((isLimit_equiv (U.pullback (Hom U)).flip (Over.mk <| U.Proj₂)).invFun (𝟙 _)).left = prod.lift f' g := by
-  simp [isLimit_equiv]
-  simp only [auxxx, Category.assoc, Iso.hom_inv_id_assoc, ← Over.comp_left, llala, prod.comp_lift, Iso.inv_hom_id_assoc]
+abbrev form₀ : Γ ⟶ obj U := (form₀' is is').left
 
-example : ind_g pb f' ≫ (BGenHom U) = f' := by
-  simp only [BGenHom, ← Category.assoc, aaa, limit.lift_π, BinaryFan.mk_fst]
+def form₁' (_ : IsPullback γ' π' U.hom δ') : Over.mk γ ⟶ Gen₁.fst' U :=
+  (U.isoOverFst is).hom ≫ Pi.form₁' δ ((U.isoIsPullback is).inv ≫ δ')
 
+abbrev form₁ : A ⟶ Gen₁ U := (form₁' is is').left
 
--- solve the hardest part....
--- maybe should work in Over throughout...
+def form₂' : Over.mk γ' ⟶ Gen₂.fst' U :=
+  (U.isoOverFst (pullbackAux is is')).hom ≫ Pi.form₂' δ ((U.isoIsPullback is).inv ≫ δ')
 
+abbrev form₂ : B ⟶ Gen₂ U := (form₂' is is').left
+
+lemma form₁'_comp_Gen₂hom₀ :
+    form₁' is is' ≫ Gen₂.hom₀ U = Over.homMk (prod.lift δ' γ) := by
+  ext; simp [form₁', Pi.form₁'_comp_Gen₂hom₀]
+
+lemma form₁_comp_Gen₂hom₀_left :
+    form₁ is is' ≫ (Gen₂.hom₀ U).left = prod.lift δ' γ :=
+  congrArg CommaMorphism.left (form₁'_comp_Gen₂hom₀ is is')
+
+lemma form₁_comp_Gen₂hom :
+    form₁ is is' ≫ Gen₂.hom U = δ' := by
+  simp [Gen₂.hom, ← Category.assoc, form₁_comp_Gen₂hom₀_left]
+
+def form₁.isPullback :
+    IsPullback (form₁ is is') π (Gen₁.snd U) (form₀ is is') := by
+  apply (Pi.form₁.isPullback δ ((U.isoIsPullback is).inv ≫ δ')).of_iso
+    (U.isoIsPullback is).symm (Iso.refl _) (Iso.refl _) (Iso.refl _)
+  <;> simp [form₁', form₁]
+  rfl
+
+def form₂.isPullback :
+    IsPullback (form₂ is is') π' (Gen₂.snd U) (form₁ is is') := by
+  apply (Pi.form₂.isPullback δ ((U.isoIsPullback is).inv ≫ δ')).of_iso
+    (U.isoIsPullback (pullbackAux is is')).symm (Iso.refl _)  (U.isoIsPullback is).symm (Iso.refl _)
+  <;> simp [form₂', form₂, form₁', form₁]
+  . rw [Iso.eq_inv_comp, ← Category.assoc, Iso.comp_inv_eq,
+        IsPullback.isoIsPullback_hom_snd]
+
+end IsPullback
+end
 end Pi
-
-
-
-
-#exit
+end
+/-
 abbrev Sigma_object := (Π(U.map)).obj (Over.mk (Proj₂ U))
 
 abbrev Sigma_objectProj : (Pi_object U).left ⟶ U.obj := (Pi_object U).hom
@@ -204,8 +409,8 @@ structure Unit_structure where
 
 -- internal universe
 structure InternalUniverse where
-  Op : t ⟶ U.obj
-  map : U.pb Op ⟶ U.obj
+  op : t ⟶ U.obj
+  map : U.pb op ⟶ U.obj
 
 def ofInternalUniverse {U} (I : @InternalUniverse C _ t U) : Universe C where
   obj := U.pb I.uni
@@ -238,3 +443,26 @@ structure ClosedUnderPi (U_Pi : Pi_structure U) where
 end InternalUniverse
 
 end Universe
+-/
+
+namespace Empty
+
+variable [HasTerminal C]
+
+-- 1. a chosen initial or 2. initial as an extra property?
+structure Structure where
+  map : ⊤_ C ⟶ U.down
+  is_initial : IsInitial (Over.mk (U.snd map))
+
+end Empty
+
+namespace Unit
+
+variable [HasTerminal C]
+
+-- 1. a chosen initial or 2. initial as an extra property?
+structure Structure where
+  map : ⊤_ C ⟶ U.down
+  iso : U.snd' map ≅ Over.mk (𝟙 _)
+
+end Unit

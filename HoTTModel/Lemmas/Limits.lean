@@ -1,11 +1,10 @@
 import Mathlib.CategoryTheory.Limits.Shapes.Pullback.CommSq
 
-open CategoryTheory
-namespace CategoryTheory.Limits
-
+namespace CategoryTheory
 
 variable {C : Type u} [Category.{v, u} C]
 
+namespace Limits
 
 section UniqueToTerminal
 
@@ -99,6 +98,7 @@ lemma ProdTerminalInv_hom_id : ProdTerminalInv ≫ ProdTerminalHom h = 𝟙 (X �
   <;> simp
   apply (SubsingletonToTerminal h).allEq
 
+@[simp]
 def IsoProdTerminal : X ≅ X ⨯ t where
   hom := ProdTerminalHom h
   inv := ProdTerminalInv
@@ -177,3 +177,145 @@ lemma pullback.leftCompIso_hom_comp_snd :
   IsLimit.conePointUniqueUpToIso_hom_comp _ _ WalkingCospan.right
 
 end PullbackLeftComp
+
+end Limits
+
+section Lift_between_two_pullbacks
+
+/-
+```
+ X - fst → Y
+ |         |
+snd        f
+ ↓         ↓
+ Z -- g -→ W
+```
+-/
+section
+variable {X Y Z W X' Y' Z' W' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y'} {snd' : X' ⟶ Z'} {f' : Y' ⟶ W'} {g' : Z' ⟶ W'}
+  (is : IsPullback fst snd f g) (is' : IsPullback fst' snd' f' g')
+  (iY : Y ⟶ Y') (iZ : Z ⟶ Z') (iW : W ⟶ W')
+  (hYW : iY ≫ f' = f ≫ iW) (hZW : iZ ≫ g' = g ≫ iW)
+
+noncomputable def IsPullback.liftIsPullback :
+    X ⟶ X' :=
+  is'.lift (fst ≫ iY) (snd ≫ iZ)
+    (by simp only [Category.assoc]; rw [hYW, hZW, ← Category.assoc, is.w, Category.assoc])
+
+lemma IsPullback.liftIsPullback_fst :
+    IsPullback.liftIsPullback is is' iY iZ iW hYW hZW ≫ fst' = fst ≫ iY :=
+  IsPullback.lift_fst _ _ _ _
+
+lemma IsPullback.liftIsPullback_snd :
+    IsPullback.liftIsPullback is is' iY iZ iW hYW hZW ≫ snd' = snd ≫ iZ :=
+  IsPullback.lift_snd _ _ _ _
+
+section
+
+variable {X Y Z W X' Y' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y'} {snd' : X' ⟶ Z} {f' : Y' ⟶ W}
+  (is : IsPullback fst snd f g) (is' : IsPullback fst' snd' f' g)
+  (i : Y ⟶ Y') (hi : i ≫ f' = f)
+
+-- along here indictes 'along' a mpa
+noncomputable def IsPullback.liftIsPullbackAlong :
+    X ⟶ X' :=
+  IsPullback.liftIsPullback is is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
+
+@[simp]
+lemma IsPullback.liftIsPullbackAlong_fst :
+    liftIsPullbackAlong is is' i hi ≫ fst' = fst ≫ i :=
+  is.liftIsPullback_fst is' _ _ _ _ _
+
+@[simp]
+lemma IsPullback.liftIsPullbackAlong_snd :
+    liftIsPullbackAlong is is' i hi ≫ snd' = snd := by
+  convert is.liftIsPullback_snd is' _ _ _ _ _
+  simp only [Category.comp_id]
+
+@[simp]
+noncomputable def IsPullback.liftIsPullbackAlong' (i : Over.mk f ⟶ Over.mk f') :
+    Over.mk snd ⟶ Over.mk snd' :=
+  Over.homMk (liftIsPullbackAlong is is' i.left (Over.w i)) (is.liftIsPullbackAlong_snd is' _ _)
+
+end
+
+@[simp]
+noncomputable def IsPullback.sectionSnd (i : W ⟶ Y) (hi : i ≫ f = 𝟙 _) :
+    Z ⟶ X :=
+  IsPullback.liftIsPullbackAlong (IsPullback.of_id_snd (f := g)) is i (by simp [hi])
+
+@[simp]
+lemma IsPullback.sectionSnd_is_section :
+    IsPullback.sectionSnd is i hi ≫ snd = 𝟙 _ := by
+  apply IsPullback.liftIsPullbackAlong_snd
+
+@[simp]
+noncomputable def IsPullback.sectionSnd' (i : Over.mk (𝟙 W) ⟶ Over.mk f) :
+    Over.mk (𝟙 Z) ⟶ Over.mk snd :=
+  Over.homMk (is.sectionSnd i.left (Over.w i)) is.sectionSnd_is_section
+
+end
+section
+variable {X Y Z W X' Z' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y} {snd' : X' ⟶ Z'} {g' : Z' ⟶ W}
+  (is : IsPullback fst snd f g) (is' : IsPullback fst' snd' f g')
+  (i : Z ⟶ Z') (hi : i ≫ g' = g)
+
+noncomputable def IsPullback.liftIsPullbackOf :
+    X ⟶ X' :=
+  IsPullback.liftIsPullback is is' (𝟙 _) i (𝟙 _) (by simp) (by simp [hi])
+
+@[simp]
+lemma IsPullback.liftIsPullbackOf_fst :
+    liftIsPullbackOf is is' i hi ≫ fst' = fst := by
+  convert is.liftIsPullback_fst is' _ _ _ _ _
+  simp only [Category.comp_id]
+
+@[simp]
+lemma IsPullback.liftIsPullbackOf_snd :
+    liftIsPullbackOf is is' i hi ≫ snd' = snd ≫ i:=
+  is.liftIsPullback_snd is' _ _ _ _ _
+
+@[simp]
+noncomputable def IsPullback.liftIsPullbackOf' (i : Over.mk g ⟶ Over.mk g') :
+    Over.mk fst ⟶ Over.mk fst' :=
+  Over.homMk (liftIsPullbackOf is is' i.left (Over.w i)) (is.liftIsPullbackOf_fst is' _ _)
+
+end
+
+end Lift_between_two_pullbacks
+
+noncomputable section IsoPullback_OverMk
+
+variable {α : Type u} [CategoryTheory.Category.{v, u} α]
+  {P P' X Y Z : α} {fst : P ⟶ X} {snd : P ⟶ Y} {fst' : P' ⟶ X} {snd' : P' ⟶ Y}
+  {f : X ⟶ Z} {g : Y ⟶ Z} (is : IsPullback fst snd f g) (is' : IsPullback fst' snd' f g)
+
+def IsPullback.isoIsPullback_fst_overMk :
+    Over.mk fst ≅ Over.mk fst' :=
+  Over.isoMk (is.isoIsPullback is')
+
+def IsPullback.isoIsPullback_snd_overMk :
+    Over.mk snd ≅ Over.mk snd' :=
+  Over.isoMk (is.isoIsPullback is')
+
+open Limits
+
+def IsPullback.isoPullback_fst_overMk [HasPullback f g] :
+    Over.mk fst ≅ Over.mk (pullback.fst f g) :=
+  is.isoIsPullback_fst_overMk (IsPullback.of_hasPullback _ _)
+
+def IsPullback.isoPullback_snd_overMk [HasPullback f g] :
+    Over.mk snd ≅ Over.mk (pullback.snd f g) :=
+  is.isoIsPullback_snd_overMk (IsPullback.of_hasPullback _ _)
+
+end IsoPullback_OverMk
+end CategoryTheory
+
+lemma NeZero.contradiction [NeZero 0] : False := by
+  rwa [← neZero_zero_iff_false (α := ℕ)]

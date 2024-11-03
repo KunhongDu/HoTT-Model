@@ -1,6 +1,7 @@
 import HoTTModel.SSet.BoundaryHorn
 import HoTTModel.SSet.Exponent
 import HoTTModel.SSet.Fibrations
+import Mathlib.Algebra.Category.Grp.Basic
 
 noncomputable section
 
@@ -8,6 +9,8 @@ namespace SSet
 open CategoryTheory Simplicial Limits SimplexCategory Function Opposite Classical
 open standardSimplex SimplicialObject Fin Prod
 variable {X Y : SSet}
+
+section Definition
 
 structure Homotopy (f g : X ⟶ Y) where
   htp : X ⨯ Δ[1] ⟶ Y
@@ -20,10 +23,13 @@ notation f " ≃ " g => Homotopy f g
 def Homotopic (f g : X ⟶ Y) : Prop := Nonempty (f ≃ g)
 
 structure HomotopyRel (f g : X ⟶ Y) (i : Z ⟶ X)  extends f ≃ g where
-  -- res : i ≫ f = i ≫ g
   rel : prod.map i (𝟙 _) ≫ htp = prod.fst ≫ (i ≫ g)
 
 def HomotopicRel (f g : X ⟶ Y) (i : Z ⟶ X) : Prop := Nonempty (HomotopyRel f g i)
+
+end Definition
+
+section Lemmas
 
 lemma HomotopyRel.res_eq  {f g : X ⟶ Y} {i : Z ⟶ X} (h :HomotopyRel f g i) :
     i ≫ f = i ≫ g := by
@@ -45,9 +51,70 @@ lemma HomotopyRel.rel' {f g : X ⟶ Y} {i : Z ⟶ X} (h : HomotopyRel f g i) :
     prod.map i (𝟙 _) ≫ h.htp = prod.fst ≫ (i ≫ f) :=
   h.res_eq ▸ h.rel
 
+def empty : SSet where
+  obj _ := PEmpty
+  map _ := PEmpty.elim
+
+def empty.homTo (X : SSet) : empty ⟶ X where
+  app n := PEmpty.elim
+  naturality := by
+    intro _ _ _; funext x
+    apply PEmpty.elim x
+
 lemma Homotopic.of_homotopicRel {f g : X ⟶ Y} {i : Z ⟶ X} :
     HomotopicRel f g i → Homotopic f g :=
   fun ⟨h⟩ ↦ ⟨h.toHomotopy⟩
+
+lemma homotopic_iff_homotopicRel_empty (X K : SSet) (f g : K ⟶ X) :
+    Homotopic f g ↔ HomotopicRel f g (empty.homTo _) := by
+  constructor
+  . intro ⟨h⟩; use h; ext n x
+    apply PEmpty.elim (yonedaEquiv _ _ $ (yonedaEquiv _ _).symm x ≫ prod.fst)
+  . apply Homotopic.of_homotopicRel
+
+def Homotopy.left_comp {f g : Y ⟶ Z} {l : X ⟶ Y} (h : f ≃ g) :
+    (l ≫ f) ≃ (l ≫ g) where
+      htp := (prod.map l (𝟙 _)) ≫ h.htp
+      left := by rw [← Category.assoc, left_comp_prod_map, Category.assoc, h.left]
+      right := by rw [← Category.assoc, right_comp_prod_map, Category.assoc, h.right]
+
+def Homotopy.right_comp {f g : X ⟶ Y} {l : Y ⟶ Z} (h : f ≃ g) :
+    (f ≫ l) ≃ (g ≫ l) where
+      htp := h.htp ≫ l
+      left := by rw [← Category.assoc, h.left]
+      right := by rw [← Category.assoc, h.right]
+
+lemma Homotopic.left_comp {f g : Y ⟶ Z} {l : X ⟶ Y} :
+    Homotopic f g → Homotopic (l ≫ f) (l ≫ g) :=
+  fun ⟨h⟩ ↦ ⟨h.left_comp⟩
+
+lemma Homotopic.right_comp {f g : X ⟶ Y} {l : Y ⟶ Z} :
+    Homotopic f g → Homotopic (f ≫ l) (g ≫ l) :=
+  fun ⟨h⟩ ↦ ⟨h.right_comp⟩
+
+def HomotopyRel.left_comp {f g : Y ⟶ Z} {i : W ⟶ X} {l : X ⟶ Y}
+  (h : HomotopyRel f g (i ≫ l)) :
+    HomotopyRel (l ≫ f) (l ≫ g) i where
+      toHomotopy := h.toHomotopy.left_comp
+      rel := by
+        simp [Homotopy.left_comp]
+        convert h.rel using 1
+
+def HomotopyRel.right_comp {f g : X ⟶ Y} {i : W ⟶ X} {l : Y ⟶ Z}
+  (h : HomotopyRel f g i) :
+    HomotopyRel (f ≫ l) (g ≫ l) i where
+      toHomotopy := h.toHomotopy.right_comp
+      rel := by simp only [Homotopy.right_comp, ← Category.assoc, h.rel]
+
+lemma HomotopicRel.left_comp {f g : Y ⟶ Z} {i : W ⟶ X} {l : X ⟶ Y} :
+    HomotopicRel f g (i ≫ l) → HomotopicRel (l ≫ f) (l ≫ g) i :=
+  fun ⟨h⟩ ↦ ⟨h.left_comp⟩
+
+lemma HomotopicRel.right_comp {f g : X ⟶ Y} {i : W ⟶ X} {l : Y ⟶ Z} :
+  HomotopicRel f g i → HomotopicRel (f ≫ l) (g ≫ l) i :=
+  fun ⟨h⟩ ↦ ⟨h.right_comp⟩
+
+end Lemmas
 
 structure FibrewiseHomotopy (f g : X ⟶ Y) (p : Y ⟶ Z) extends f ≃ g where
   fibrewise : (h : f ≫ p = g ≫ p) → prod.fst ≫ f ≫ p = htp ≫ p
@@ -250,16 +317,6 @@ def VecticeHomotopicEquivOfKanComplex (S : SSet) [KanComplex S] :
           apply_fun S.yonedaEquiv _
           exact hv'.2
 
-def empty : SSet where
-  obj _ := PEmpty
-  map _ := PEmpty.elim
-
-def empty.homTo (X : SSet) : empty ⟶ X where
-  app n := PEmpty.elim
-  naturality := by
-    intro _ _ _; funext x
-    apply PEmpty.elim x
-
 -- To prove HomotopicRelEquivOfKanComplex
 
 -- 1. `f ≃ g rel L ↔ f₀ ≃ g₀` in the fibre of `X.exp K → X.exp L`
@@ -395,13 +452,6 @@ def HomotopicRelEquivOfKanComplex (X K : SSet) {L} (i : L ⟶ K) [KanComplex X] 
           convert H₂.2 H₂.1 using 3
           exact H₁.1
 
-lemma homotopic_iff_homotopicRel_empty (X K : SSet) (f g : K ⟶ X) :
-    Homotopic f g ↔ HomotopicRel f g (empty.homTo _) := by
-  constructor
-  . intro ⟨h⟩; use h; ext n x
-    apply PEmpty.elim (yonedaEquiv _ _ $ (yonedaEquiv _ _).symm x ≫ prod.fst)
-  . apply Homotopic.of_homotopicRel
-
 def HomotopicEquivOfKanComplex (X K : SSet) [KanComplex X] :
     Equivalence (fun f g : K ⟶ X ↦ Homotopic f g) := by
   simp only [homotopic_iff_homotopicRel_empty]
@@ -456,7 +506,11 @@ instance fixed.setoid (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] 
       r f g:= HomotopicRel f.val g.val (boundaryInclusion n)
       iseqv := fixed.homotopicRelEquivOfKanComplex _ _ _
 
-instance fixed.hasEquiv (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) :
+instance fixed.setoid' (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) :
+    Setoid {x : Δ[n] ⟶ X | ∂Δ[n].toΔ0 ≫ v = boundaryInclusion n ≫ x} :=
+  fixed.setoid _ _ _
+
+instance (priority := high) fixed.hasEquiv (n : ℕ) [NeZero n] (X : SSet) [KanComplex X] (v : Δ[0] ⟶ X) :
     HasEquiv (fixed n X v) := instHasEquivOfSetoid
 
 section multiplication
@@ -643,7 +697,7 @@ lemma fixed.mul_sound {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] 
   {x x' y y' : fixed n X v} :
     x ≈ x' → y ≈ y' → x * y ≈ x' * y' := by
   cases n with
-  | zero => apply False.elim; rwa [← neZero_zero_iff_false (α := ℕ)]
+  | zero => apply False.elim NeZero.contradiction
   | succ n => apply fixed.mul_unique_up_to_equiv_of_equiv
 
 instance fixed.inst_one {n : ℕ} [NeZero n] {X : SSet} [KanComplex X] {v : Δ[0] ⟶ X} :
@@ -913,29 +967,58 @@ end HomotopyGroup
 
 section functor
 
-variable (n : ℕ) [NeZero n] {X Y : SSet} [KanComplex X] [KanComplex Y]
+variable (n : ℕ) [h : NeZero n] {X Y : SSet} [KanComplex X] [KanComplex Y]
   (f : X ⟶ Y) {x : Δ[0] ⟶ X} {y : Δ[0] ⟶ Y} (hf : x ≫ f = y)
 
-def HomotopyGroup.map_toFun₀ : fixed n X x → HomotopyGroup n Y y := by
+def HomotopyGroup.hom_toFun : fixed n X x → HomotopyGroup n Y y :=
+match n, h with
+  | 0, _ => False.elim NeZero.contradiction
+  | n + 1, _ => fun ⟨a, ha⟩ ↦ ⟦⟨a ≫ f, by
+        rw [fixed.mem_iff] at ha ⊢
+        intro j
+        rw [← Category.assoc, ha, Category.assoc, hf]⟩⟧
+
+variable {n} in
+lemma HomotopyGroup.hom_toFun_sound (a b : fixed n X x) :
+    a ≈ b → hom_toFun n f hf a = hom_toFun n f hf b := by
   cases n with
-  | zero => sorry
+  | zero => apply False.elim NeZero.contradiction
   | succ n =>
-      intro ⟨a, ha⟩
-      apply Quotient.mk'
-      use a ≫ f
-      rw [fixed.mem_iff] at ha ⊢
-      intro j
-      rw [← Category.assoc, ha, Category.assoc, hf]
+      intro h
+      dsimp [hom_toFun]
+      rw [Quotient.eq (α := fixed _ _ _)]
+      apply h.right_comp
 
-def HomotopyGroup.map : HomotopyGroup n X x →* HomotopyGroup n Y y where
-  toFun := by
-    apply Quotient.lift (HomotopyGroup.map_toFun₀ _)
-
-
-  map_one' := _
-  map_mul' := _
-
-
+def HomotopyGroup.hom : HomotopyGroup n X x →* HomotopyGroup n Y y :=
+match n, h with
+  | 0, _ => False.elim NeZero.contradiction
+  | n + 1, _ =>{
+    toFun := Quotient.lift (hom_toFun _ f hf) (hom_toFun_sound _ _)
+    map_one' := by
+      change Quotient.lift _ _ ⟦1⟧ = ⟦1⟧
+      simp [hom_toFun]
+      convert Setoid.refl _
+      change _ ≫ y = (_ ≫ x) ≫ f
+      simp only [Category.assoc, hf]
+    map_mul' := by
+      apply Quotient.ind; intro a
+      apply Quotient.ind; intro b
+      rw [← mul_def]
+      simp [hom_toFun]
+      rw [← mul_def, Quotient.eq (α := fixed _ _ _)]
+      symm
+      convert fixed.mul_unique_up_to_equiv _ _ (fixed.mul₁ a b ≫ f) _
+      apply horn.hom_ext'
+      intro j hj
+      obtain ⟨j, hj⟩ := exists_succAbove_eq_iff.mpr hj
+      cases hj
+      rw [fixed.mul₀_spec, ← Category.assoc _ _ f, ← fixed.mul₁_spec,
+         ← Category.assoc, fixed.mul₀_spec]
+      split_ifs
+      . rfl
+      . rfl
+      . simp only [Category.assoc, hf]
+  }
 
 
 end functor
