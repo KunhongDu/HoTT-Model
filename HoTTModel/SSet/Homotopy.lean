@@ -36,11 +36,6 @@ lemma HomotopyRel.res_eq  {f g : X ⟶ Y} {i : Z ⟶ X} (h :HomotopyRel f g i) :
   have : i ≫ left = left ≫ prod.map i (𝟙 _) := by
     simp [left]
     congr 1
-    . simp [Prod.left, IsoProdΔ0, IsoProdTerminal]
-    . rw [← Category.assoc _ _ (standardSimplex.map _), ← Category.assoc _ _ (standardSimplex.map _),
-          ← Category.assoc _ prod.snd _]
-      congr 1
-      simp [IsoProdΔ0, IsoProdTerminal]
   -- so it is true!!!
   apply_fun fun y ↦ y ≫ h.htp at this
   simp [h.rel, h.left] at this
@@ -389,6 +384,7 @@ lemma homotopicRel_iff_homotopic_lift {X K L: SSet} [KanComplex X] (f g : K ⟶ 
           rw [← Category.assoc]; congr 1
           apply prod.hom_ext
           <;> simp [left]
+          rw [← Category.assoc]; congr 1; apply unique_toΔ0
         . apply unique_toΔ0
       . apply pullback.hom_ext
         . erw [IsPullback.lift_fst, IsPullback.comp_lift, IsPullback.lift_fst,
@@ -397,6 +393,7 @@ lemma homotopicRel_iff_homotopic_lift {X K L: SSet} [KanComplex X] (f g : K ⟶ 
           rw [← Category.assoc]; congr 1
           apply prod.hom_ext
           <;> simp [right]
+          rw [← Category.assoc]; congr 1; apply unique_toΔ0
         . apply unique_toΔ0
   . intro ⟨h₁, h₂⟩
     specialize h₂ h₁
@@ -408,6 +405,7 @@ lemma homotopicRel_iff_homotopic_lift {X K L: SSet} [KanComplex X] (f g : K ⟶ 
       . rw [← cancel_epi (@IsoProdΔ0 K).inv]
         have : IsoProdΔ0.inv ≫ left = K ◁ (standardSimplex.map (δ 1)) := by
           simp [IsoProdΔ0, left]; apply prod.hom_ext <;> simp
+          rw [← Category.assoc]; congr 1; apply unique_toΔ0
         rw [← Category.assoc, this]
         change (K.iHom X).map (δ 1).op _ = _
         rw [yonedaEquiv_symm_naturality]
@@ -416,6 +414,7 @@ lemma homotopicRel_iff_homotopic_lift {X K L: SSet} [KanComplex X] (f g : K ⟶ 
       . rw [← cancel_epi (@IsoProdΔ0 K).inv]
         have : IsoProdΔ0.inv ≫ right = K ◁ (standardSimplex.map (δ 0)) := by
           simp [IsoProdΔ0, right]; apply prod.hom_ext <;> simp
+          rw [← Category.assoc]; congr 1; apply unique_toΔ0
         rw [← Category.assoc, this]
         change (K.iHom X).map (δ 0).op _ = _
         rw [yonedaEquiv_symm_naturality]
