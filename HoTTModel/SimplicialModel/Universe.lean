@@ -8,6 +8,48 @@ open Simplicial CategoryTheory Opposite Limits Functor Set
 
 universe u
 
+namespace LinearOrder
+
+variable {A B : Type u} (ord : LinearOrder A) (h : A ≃ B)
+
+-- there is `IsPullback.WellOrderedHom`; merge this two
+def ofEquiv :
+    LinearOrder B where
+  le a b := h.symm a ≤ h.symm b
+  le_refl _ := le_refl _
+  le_trans _ _ _ := le_trans
+  le_antisymm _ _ h₁ h₂ := by
+    rw [← h.symm.apply_eq_iff_eq]
+    apply le_antisymm h₁ h₂
+  le_total _ _ := le_total _ _
+  decidableLE _ _ := LinearOrder.decidableLE _ _
+  decidableEq a b := by
+    rw [← h.symm.apply_eq_iff_eq]
+    apply LinearOrder.decidableEq _ _ -- this should be default??
+
+-- LinearOrder.ofEquiv iff
+lemma ofEquiv_le_iff_le :
+    ∀ a b : B, (ofEquiv ord h).le a b ↔ h.symm a ≤ h.symm b := by
+  intros; rfl
+
+lemma ofEquiv_lt_iff_lt :
+    ∀ a b : B, (ofEquiv ord h).lt a b ↔ h.symm a < h.symm b := by
+  intro a b
+  rw [(ofEquiv ord h).lt_iff_le_not_le, lt_iff_le_not_le,
+      ofEquiv_le_iff_le, ofEquiv_le_iff_le]
+
+noncomputable def ofEquiv.ltRelIso :
+    RelIso ord.lt (ofEquiv ord h).lt where
+  toEquiv := h
+  map_rel_iff' {_ _} := by
+    rw [ofEquiv_lt_iff_lt, h.symm_apply_apply, h.symm_apply_apply]
+
+def ofEquiv.isWellOrderOfIsWellOrder {A B : Type u} (ord : LinearOrder A)
+    (h : A ≃ B) (_ : IsWellOrder A ord.lt) : IsWellOrder B (ofEquiv ord h).lt :=
+  (ofEquiv.ltRelIso ord h).symm.toRelEmbedding.isWellOrder
+
+end LinearOrder
+
 namespace SSet
 noncomputable section Fibre
 variable {X Y : SSet.{u}} (f : X ⟶ Y)
@@ -88,19 +130,10 @@ variable {P X Y Z : SSet} {h : P ⟶ X} {i : P ⟶ Y} {f : X ⟶ₒ Z} {g : Y �
   (D : IsPullback h i f.hom g) {n : ℕ} (y : Y _[n])
 
 noncomputable def IsPullback.WellOrderedHom  :
-    LinearOrder (Fibre i y) where
-      le a b := D.fibreEquiv y a ≤ D.fibreEquiv y b
-      le_refl _ := le_refl _
-      le_trans _ _ _ := le_trans
-      le_antisymm _ _ h h' := by
-        rw [← (D.fibreEquiv y).apply_eq_iff_eq]
-        apply le_antisymm h h'
-      le_total _ _ := le_total _ _
-      decidableLE _ _ := LinearOrder.decidableLE _ _
-      decidableEq a b := by
-        rw [← (D.fibreEquiv y).apply_eq_iff_eq]
-        apply LinearOrder.decidableEq _ _ -- this should be default??
+    LinearOrder (Fibre i y) :=
+  LinearOrder.ofEquiv f.ord (D.fibreEquiv y).symm
 
+-- may be useless
 lemma IsPullback.WellOrderedHom.le_iff_le (a b : Fibre i y) :
     (IsPullback.WellOrderedHom D y).le a b ↔ D.fibreEquiv _ a ≤ D.fibreEquiv _ b := by
   rfl
@@ -116,8 +149,8 @@ noncomputable def IsPullback.WellOrderedHom.ltRelIso :
   map_rel_iff' := (lt_iff_lt D y _ _).symm
 
 def IsPullback.WellOrderedHom.isWellOrder :
-    IsWellOrder _ (IsPullback.WellOrderedHom D y).lt :=
-  (ltRelIso D y).toRelEmbedding.isWellOrder
+    IsWellOrder _ (IsPullback.WellOrderedHom D y).lt := by
+  apply LinearOrder.ofEquiv.isWellOrderOfIsWellOrder _ _ f.isWellOrder
 
 --- you really should read the proof of
 #check RelEmbedding.acc
@@ -215,11 +248,11 @@ lemma strictMono (F : OrderIso f f') {y : Y _[n]} :
     StrictMono $ F.fibreTrans (y := y) :=
   F.mono.strictMono_of_injective (F.fibreEquiv _).injective
 
-lemma lt_iff_lt {F : OrderIso f f'} {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
+lemma lt_iff_lt (F : OrderIso f f') {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
     a < b ↔ F.fibreTrans a < F.fibreTrans b :=
   F.strictMono.lt_iff_lt.symm
 
-lemma le_iff_le {F : OrderIso f f'} {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
+lemma le_iff_le (F : OrderIso f f') {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
     a ≤ b ↔ F.fibreTrans a ≤ F.fibreTrans b :=
   F.strictMono.le_iff_le.symm
 
@@ -284,8 +317,30 @@ abbrev SmallWO.hom (f : SmallWO α Y) := f.wo.hom
 def SmallWO.rel {α} (f g : SmallWO α Y) : Prop :=
   Nonempty (OrderIso f.2 g.2)
 
--- this is really easy tho
-def SmallWO.rel_iseqv {α} : Equivalence (SmallWO.rel (Y := Y) (α := α)) := sorry
+def SmallWO.rel_iseqv {α} : Equivalence (SmallWO.rel (Y := Y) (α := α)) where
+  refl a := ⟨{
+    toIso := Iso.refl _
+    comm := by simp
+    mono := fun {_ _} _ _ h ↦ h
+  }⟩
+  symm {a b} := by
+    intro ⟨h⟩
+    exact ⟨{
+      toIso := h.toIso.symm
+      comm := by simp [h.comm]
+      mono := by
+        intro _ _ _ _ hcd
+        rwa [h.symm.le_iff_le] at hcd
+      }⟩
+  trans {a b c} := by
+    intro ⟨hab⟩ ⟨hbc⟩
+    exact ⟨{
+      toIso := hab.toIso ≪≫ hbc.toIso
+      comm := by simp [hab.comm, hbc.comm]
+      mono := by
+        intro _ _ _ _ h
+        rwa [hab.le_iff_le, hbc.le_iff_le] at h
+      }⟩
 
 instance Setoid_SmallWO {α} : Setoid (SmallWO α Y) where
   r := SmallWO.rel
@@ -309,7 +364,8 @@ structure SmallFibresWithStructures where
   map_id {n : SimplexCategoryᵒᵖ} : map (𝟙 n) = id
   map_comp {n m k : SimplexCategoryᵒᵖ} (φ : n ⟶ m) (ψ : m ⟶ k) :
     map (φ ≫ ψ) = map ψ ∘ map φ
-  order {n : SimplexCategoryᵒᵖ} (x : X.obj n) : LinearOrder ((equivShrink _).symm (fibre x)).1.out
+  order {n : SimplexCategoryᵒᵖ} (x : X.obj n) :
+    LinearOrder ((equivShrink _).symm (fibre x)).1.out
   isWellOrder {n : SimplexCategoryᵒᵖ} (x : X.obj n) : IsWellOrder _ ((order x).lt)
 
 @[simp]
@@ -342,7 +398,8 @@ def _root_.Sigma.EquivFstPreimage (A : Type u) (f : A → Type u) (a : A) :
     simp only [mem_preimage, mem_singleton_iff] at this
     exact this.symm
 
-def SmallFibresWithStructures.FibreToHomEquiv (S : SmallFibresWithStructures α X) {n} (y : X _[n]) :
+def SmallFibresWithStructures.FibreToHomEquiv (S : SmallFibresWithStructures α X)
+  {n} (y : X _[n]) :
     Fibre S.toHom y ≃ Quotient.out ((equivShrink ↑(Iio α)).symm (S.fibre y)).val :=
   (Sigma.EquivFstPreimage _ (fun x ↦ ((equivShrink _).symm (S.fibre x)).1.out) y).symm
 
@@ -352,43 +409,6 @@ lemma SmallFibresWithStructures.cardinal_mk_fibre_to_hom_lt
   rw [Cardinal.mk_congr (S.FibreToHomEquiv y)]
   simp only [Cardinal.mk_out]
   exact ((equivShrink ↑(Iio α)).symm (S.fibre y)).2
-
--- there is `IsPullback.WellOrderedHom`; merge this two
-def LinearOrder.ofEquiv {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
-    LinearOrder B where
-  le a b := h.symm a ≤ h.symm b
-  le_refl _ := le_refl _
-  le_trans _ _ _ := le_trans
-  le_antisymm _ _ h₁ h₂ := by
-    rw [← h.symm.apply_eq_iff_eq]
-    apply le_antisymm h₁ h₂
-  le_total _ _ := le_total _ _
-  decidableLE _ _ := LinearOrder.decidableLE _ _
-  decidableEq a b := by
-    rw [← h.symm.apply_eq_iff_eq]
-    apply LinearOrder.decidableEq _ _ -- this should be default??
-
--- LinearOrder.ofEquiv iff
-lemma LinearOrder.ofEquiv_le_iff_le {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
-    ∀ a b : B, (ofEquiv ord h).le a b ↔ h.symm a ≤ h.symm b := by
-  intros; rfl
-
-lemma LinearOrder.ofEquiv_lt_iff_lt {A B : Type u} (ord : LinearOrder A) (h : A ≃ B) :
-    ∀ a b : B, (ofEquiv ord h).lt a b ↔ h.symm a < h.symm b := by
-  intro a b
-  rw [(ofEquiv ord h).lt_iff_le_not_le, lt_iff_le_not_le,
-      ofEquiv_le_iff_le, ofEquiv_le_iff_le]
-
-noncomputable def LinearOrder.ofEquiv.ltRelIso
-  {A B : Type u} (ord : LinearOrder A) (h : A ≃ B):
-    RelIso ord.lt (ofEquiv ord h).lt where
-  toEquiv := h
-  map_rel_iff' {_ _} := by
-    rw [ofEquiv_lt_iff_lt, h.symm_apply_apply, h.symm_apply_apply]
-
-def LinearOrder.ofEquiv.isWellOrderOfIsWellOrder {A B : Type u} (ord : LinearOrder A)
-    (h : A ≃ B) (_ : IsWellOrder A ord.lt) : IsWellOrder B (ofEquiv ord h).lt :=
-  (ofEquiv.ltRelIso ord h).symm.toRelEmbedding.isWellOrder
 
 @[simp]
 def SmallFibresWithStructures.toWO (S : SmallFibresWithStructures α X) :
@@ -573,10 +593,60 @@ def SmallWO.pullback (a : SmallWO α Y) :
     convert a.small (f.app _ y) using 1
     exact Quotient.sound ⟨(IsPullback.of_hasPullback a.wo.hom f).fibreEquiv y⟩
 
+lemma SmallWO.pullback_id (a : SmallWO α Y) :
+    SmallWO.pullback (𝟙 Y) a ≈ a := by
+  have : IsIso (pullback.fst a.hom (𝟙 Y)) := by
+    sorry -- `IsPullback.isIso_fst_of_mono` in latest version of Mathlib
+  exact ⟨{
+    toIso := asIso (pullback.fst a.wo.hom (𝟙 Y))
+    comm := by simp [pullback.condition]; rfl
+    mono := by
+      intro _ y _ _ h
+      rwa [IsPullback.WellOrderedHom.le_iff_le] at h
+  }⟩
+
+lemma SmallWO.pullback_comp {f : Z ⟶ Y} {g : W ⟶ Z} (a : SmallWO α Y) :
+    SmallWO.pullback g (SmallWO.pullback f a) ≈ SmallWO.pullback (g ≫ f) a := by
+  let is := IsPullback.of_hasPullback a.hom (g ≫ f)
+  let is' := IsPullback.paste_horiz (IsPullback.of_hasPullback (pullback.snd a.hom f) g)
+    (IsPullback.of_hasPullback a.hom f)
+  exact ⟨{
+    toIso := is'.isoIsPullback is
+    comm := by erw [IsPullback.isoIsPullback_hom_snd]; rfl
+    mono := by
+      intro n y b c h
+      rw [IsPullback.WellOrderedHom.le_iff_le,
+          IsPullback.WellOrderedHom.le_iff_le] at h
+      rw [IsPullback.WellOrderedHom.le_iff_le]
+      convert h using 1
+      all_goals
+      simp [IsPullback.fibreEquiv, TypesPullbackPreimageEquiv, OrderIso.fibreTrans,
+            Fibre.trans]
+      change (_ ∘ _) _ = (_ ∘ _) _
+      rw [← types_comp, ← types_comp, ← NatTrans.comp_app, ← NatTrans.comp_app,
+          IsPullback.isoIsPullback_hom_fst]
+      rfl
+  }⟩
+
 variable {f} in
 lemma SmallWO.pullback_sound {a b : SmallWO α Y} :
-    a ≈ b → SmallWO.pullback f a ≈ SmallWO.pullback f b := by
-  sorry
+    a ≈ b → SmallWO.pullback f a ≈ SmallWO.pullback f b
+| ⟨h⟩ => ⟨{
+    toIso := asIso (pullback.map a.hom f b.hom f h.hom (𝟙 _) (𝟙 _)
+      (by simp [h.comm]) (by simp))
+    comm := by simp; erw [pullback.lift_snd, Category.comp_id]; rfl
+    mono := by
+      intro n y c d hcd
+      rw [IsPullback.WellOrderedHom.le_iff_le, h.le_iff_le] at hcd
+      rw [IsPullback.WellOrderedHom.le_iff_le]
+      convert hcd
+      all_goals
+      simp [IsPullback.fibreEquiv, TypesPullbackPreimageEquiv, OrderIso.fibreTrans,
+            Fibre.trans]
+      change (_ ∘ _) _ = (_ ∘ _) _
+      rw [← types_comp, ← types_comp, ← NatTrans.comp_app, ← NatTrans.comp_app,
+          pullback.lift_fst]
+  }⟩
 
 variable (α) in
 def Ω_map : Ω_obj α Y ⟶ Ω_obj α Y' :=
@@ -590,10 +660,22 @@ lemma SmallWO.Ω_map_Ω_obj_mk (a : SmallWO α Y) :
     erw [Quotient.lift_mk, Function.comp_apply]
     rfl
 
-lemma Ω_map_id : Ω_map α (𝟙 Y) = 𝟙 (Ω_obj α Y) := sorry
+lemma Ω_map_id : Ω_map α (𝟙 Y) = 𝟙 (Ω_obj α Y) := by
+  ext a; revert a
+  apply Shrink.rec; apply Quotient.ind
+  intro a
+  simp only [types_id_apply, EmbeddingLike.apply_eq_iff_eq]
+  erw [SmallWO.Ω_map_Ω_obj_mk]
+  exact Ω_obj.mk_sound (SmallWO.pullback_id _)
 
 lemma Ω_map_comp {f : Y ⟶ Y'} {g : Y' ⟶ Y''}:
-    (Ω_map α g) ≫ (Ω_map α f) = Ω_map α (f ≫ g) := sorry
+    (Ω_map α g) ≫ (Ω_map α f) = Ω_map α (f ≫ g) := by
+  ext a; revert a
+  apply Shrink.rec; apply Quotient.ind
+  intro a
+  simp only [types_comp_apply, EmbeddingLike.apply_eq_iff_eq]
+  erw [SmallWO.Ω_map_Ω_obj_mk, SmallWO.Ω_map_Ω_obj_mk, SmallWO.Ω_map_Ω_obj_mk]
+  apply Ω_obj.mk_sound a.pullback_comp
 
 end map
 
