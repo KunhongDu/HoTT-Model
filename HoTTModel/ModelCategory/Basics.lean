@@ -6,30 +6,6 @@ import Mathlib.CategoryTheory.Limits.HasLimits
 namespace CategoryTheory
 open Limits MorphismProperty
 
-section
-
-variable {C : Type*} [Category C] {D : Type*} [Category D]
-
-structure FuctorOfObj (obj : C → D) where
-  map : ∀ {X Y : C}, (X ⟶ Y) → (obj X ⟶ obj Y)
-  map_id : ∀ X : C, map (𝟙 X) = 𝟙 (obj X)
-  map_comp : ∀ {X Y Z : C} (f : X ⟶ Y) (g : Y ⟶ Z), map (f ≫ g) = map f ≫ map g
-
-@[simp]
-def FuctorOfObj.toFunctor {obj : C → D} (F : FuctorOfObj obj) :
-    C ⥤ D where
-  obj := obj
-  map := F.map
-  map_id := F.map_id
-  map_comp := F.map_comp
-
-def Arrow.MapMk {F G : {X Y : C} → (f : X ⟶ Y) → D}
-  (f : {X Y : C} → (f : X ⟶ Y) → (F f ⟶ G f)):
-    Arrow C → Arrow D :=
-  fun g ↦ Arrow.mk (f g.hom)
-
-end
-
 universe u v
 variable {C : Type u} [Category.{v,u} C]
 
