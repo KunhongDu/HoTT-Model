@@ -1,7 +1,9 @@
 import HoTTModel.SSet.Fibrations
 import HoTTModel.RepresentableBy
+import Mathlib.CategoryTheory.Limits.Presheaf
 import Mathlib.SetTheory.Ordinal.Basic
 import Mathlib.SetTheory.Cardinal.Cofinality
+import HoTTModel.SimplicialModel.test
 
 -- This file aims to construct a universe in sSet
 open Simplicial CategoryTheory Opposite Limits Functor Set
@@ -81,11 +83,11 @@ def _root_.CategoryTheory.TypesPullbackPreimageEquiv {P X Y Z : Type u}
     change (_ ≫ h) _ = _
     rw [IsPullback.lift_fst]
 
-abbrev Fibre {n : ℕ} (y : Y _[n]) : Set (X _[n]) :=
-  (f.app (op [n])) ⁻¹' {y}
+abbrev Fibre {n : SimplexCategoryᵒᵖ} (y : Y.obj n) : Set (X.obj n) :=
+  (f.app n) ⁻¹' {y}
 
 variable {f} in
-lemma Fibre.app_eq {n : ℕ} {y : Y _[n]} (x : Fibre f y) :
+lemma Fibre.app_eq {n : SimplexCategoryᵒᵖ} {y : Y.obj n} (x : Fibre f y) :
     f.app _ x.val = y := by
   have := x.2
   dsimp [Fibre, Set.preimage] at this
@@ -94,9 +96,9 @@ lemma Fibre.app_eq {n : ℕ} {y : Y _[n]} (x : Fibre f y) :
 
 def _root_.CategoryTheory.IsPullback.fibreEquiv {P X Y Z : SSet}
   {fst : P ⟶ X} {snd : P ⟶ Y} {f : X ⟶ Z} {g : Y ⟶ Z}
-  (D : IsPullback fst snd f g) {n : ℕ} (y : Y _[n]) :
+  (D : IsPullback fst snd f g) {n : SimplexCategoryᵒᵖ} (y : Y.obj n) :
     Fibre snd y ≃ Fibre f (g.app _ y) :=
-  CategoryTheory.TypesPullbackPreimageEquiv (IsPullback.map (ev n) D) _
+  CategoryTheory.TypesPullbackPreimageEquiv (IsPullback.map (ev' n) D) _
 
 end Fibre
 
@@ -106,15 +108,16 @@ variable {X Y : SSet.{u}} (f : X ⟶ Y)
 variable (X Y) in
 structure WellOrderedHom where
   hom : X ⟶ Y
-  ord {n : ℕ} {y : Y _[n]} : LinearOrder (Fibre hom y)
-  isWellOrder {n : ℕ} {y : Y _[n]} : IsWellOrder _ ((ord (y := y)).lt)
+  ord {n : SimplexCategoryᵒᵖ} {y : Y.obj n} : LinearOrder (Fibre hom y)
+  isWellOrder {n : SimplexCategoryᵒᵖ} {y : Y.obj n} : IsWellOrder _ ((ord (y := y)).lt)
 -- ParitialOrder + WellOrder should be LinearOrder
 -- but not show about how to define the instance so that
 -- the defintion of relations are compatible
 -- for now, use LinearOrder
 
 @[simp]
-abbrev WellOrderedHom.fibre (f : WellOrderedHom X Y) {n : ℕ} (y : Y _[n]) := Fibre f.hom y
+abbrev WellOrderedHom.fibre (f : WellOrderedHom X Y) {n : SimplexCategoryᵒᵖ}
+  (y : Y.obj n) := Fibre f.hom y
 
 -- why isn't wellOrder a class like partialOrder
 
@@ -127,7 +130,7 @@ infix:80 "⁻¹ " => WellOrderedHom.fibre
 
 section Pullback_Fibre_WellOrdered
 variable {P X Y Z : SSet} {h : P ⟶ X} {i : P ⟶ Y} {f : X ⟶ₒ Z} {g : Y ⟶ Z}
-  (D : IsPullback h i f.hom g) {n : ℕ} (y : Y _[n])
+  (D : IsPullback h i f.hom g) {n : SimplexCategoryᵒᵖ} (y : Y.obj n)
 
 noncomputable def IsPullback.WellOrderedHom  :
     LinearOrder (Fibre i y) :=
@@ -148,6 +151,20 @@ noncomputable def IsPullback.WellOrderedHom.ltRelIso :
   toEquiv := D.fibreEquiv y
   map_rel_iff' := (lt_iff_lt D y _ _).symm
 
+/-
+noncomputable def IsPullback.WellOrderedHom.leRelIso :
+    RelIso (IsPullback.WellOrderedHom D y).le (f.ord (y := g.app _ y)).le where
+  toEquiv := D.fibreEquiv y
+  map_rel_iff' := (le_iff_le D y _ _).symm
+-/
+
+
+noncomputable def IsPullback.WellOrderedHom.OrderIso :
+    @OrderIso (Fibre i y) (f⁻¹ (g.app _ y)) (IsPullback.WellOrderedHom D y).toLE _ where
+  toEquiv := D.fibreEquiv y
+  map_rel_iff' := (le_iff_le D y _ _).symm
+
+
 def IsPullback.WellOrderedHom.isWellOrder :
     IsWellOrder _ (IsPullback.WellOrderedHom D y).lt := by
   apply LinearOrder.ofEquiv.isWellOrderOfIsWellOrder _ _ f.isWellOrder
@@ -158,12 +175,11 @@ def IsPullback.WellOrderedHom.isWellOrder :
 end Pullback_Fibre_WellOrdered
 
 def Fibre.trans {f : X ⟶ Y} {f' : X' ⟶ Y} (g : X ⟶ X')
-    (comm : f = g ≫ f') {y : Y _[n]} (a : (Fibre f y)): (Fibre f' y) :=
+    (comm : f = g ≫ f') {y : Y.obj n} (a : (Fibre f y)): (Fibre f' y) :=
   ⟨g.app _ a, comm.symm ▸ a.2⟩
 
 def Fibre.map {f : X ⟶ Y} {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m) {y : Y.obj n}
-  (a : Fibre f (n := n.unop.len) y) :
-    Fibre f (n := m.unop.len) (Y.map φ y) := by
+  (a : Fibre f y) : Fibre f (Y.map φ y) := by
   use X.map φ a.val
   simp only [SimplexCategory.mk_len, op_unop, mem_preimage, mem_singleton_iff]
   change (X.map φ ≫ f.app m) _ = _
@@ -171,7 +187,7 @@ def Fibre.map {f : X ⟶ Y} {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m) {y : Y.
 
 -- can't find: nonempty set in a well order has a least element
 
-lemma Fibre.eq_iff_trans_eq_of_iso {f : X ⟶ Y} {f' : X' ⟶ Y} (F : Iso X X') {y : Y _[n]}
+lemma Fibre.eq_iff_trans_eq_of_iso {f : X ⟶ Y} {f' : X' ⟶ Y} (F : Iso X X') {y : Y.obj n}
   (comm : f = F.hom ≫ f') (a b : Fibre f y):
     a = b ↔ Fibre.trans F.hom comm a = Fibre.trans F.hom comm b := by
   constructor
@@ -213,7 +229,7 @@ lemma _root_.IsWellOrder.OrderIso_apply_eq (α β: Type*) [Preorder α] [Preorde
   rw [initialSeg_of_isWellOrder_eq, initialSeg_of_isWellOrder_eq]
   apply InitialSeg.eq
 
-lemma _root_.IsWellOrder.OrderIso_eq (α β: Type) [Preorder α] [Preorder β]
+lemma _root_.IsWellOrder.OrderIso_eq (α β: Type*) [Preorder α] [Preorder β]
   [IsWellOrder α (· < ·)] [IsWellOrder β (· < ·)] (f g : α ≃o β) : f = g := by
   ext
   apply IsWellOrder.OrderIso_apply_eq
@@ -221,7 +237,7 @@ lemma _root_.IsWellOrder.OrderIso_eq (α β: Type) [Preorder α] [Preorder β]
 @[ext]
 structure OrderIso (f : X ⟶ₒ Y) (f' : X' ⟶ₒ Y) extends Iso X X' where
   comm : f.1 = hom ≫ f'.1
-  mono {y : Y _[n]} : Monotone $ Fibre.trans hom comm (y := y)
+  mono {y : Y.obj n} : Monotone $ Fibre.trans hom comm (y := y)
 
 namespace OrderIso
 variable {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y}
@@ -235,28 +251,30 @@ lemma ext' (F G : OrderIso f f') (w : F.hom = G.hom) :
   have := Iso.ext w
   ext1 <;> rw [this]
 
-def fibreTrans (F : OrderIso f f') {n : ℕ} {y : Y _[n]} := Fibre.trans F.hom F.comm (y := y)
+def fibreTrans (F : OrderIso f f') {n : SimplexCategoryᵒᵖ} {y : Y.obj n} :=
+  Fibre.trans F.hom F.comm (y := y)
 
-def fibreEquiv (F : OrderIso f f') {n : ℕ} (y : Y _[n]) :
+def fibreEquiv (F : OrderIso f f') {n : SimplexCategoryᵒᵖ} (y : Y.obj n) :
     ↑(f⁻¹ y) ≃ ↑(f'⁻¹ y) where
   toFun := Fibre.trans F.hom F.comm -- change to fibreTrans
   invFun := Fibre.trans F.inv F.comm_inv.symm
   left_inv := by intro; simp [Fibre.trans]
   right_inv := by intro; simp [Fibre.trans]
 
-lemma strictMono (F : OrderIso f f') {y : Y _[n]} :
+lemma strictMono (F : OrderIso f f') {y : Y.obj n} :
     StrictMono $ F.fibreTrans (y := y) :=
   F.mono.strictMono_of_injective (F.fibreEquiv _).injective
 
-lemma lt_iff_lt (F : OrderIso f f') {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
+lemma lt_iff_lt (F : OrderIso f f') {n : SimplexCategoryᵒᵖ} {y : Y.obj n} (a b : f⁻¹ y) :
     a < b ↔ F.fibreTrans a < F.fibreTrans b :=
   F.strictMono.lt_iff_lt.symm
 
-lemma le_iff_le (F : OrderIso f f') {n : ℕ} {y : Y _[n]} (a b : f⁻¹ y) :
+lemma le_iff_le (F : OrderIso f f') {n : SimplexCategoryᵒᵖ} {y : Y.obj n} (a b : f⁻¹ y) :
     a ≤ b ↔ F.fibreTrans a ≤ F.fibreTrans b :=
   F.strictMono.le_iff_le.symm
 
-def symm {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y} (F : OrderIso f f') : OrderIso f' f := {
+def symm {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y} (F : OrderIso f f') :
+    OrderIso f' f := {
   toIso := F.toIso.symm
   comm := by erw [F.comm, ← Category.assoc, F.inv_hom_id_assoc]
   mono := by
@@ -266,17 +284,17 @@ def symm {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y} (F : OrderIso f f') : OrderIso f' f
     rw [F.lt_iff_lt]
     convert hab
     <;> convert (F.fibreEquiv y).right_inv _
-}
+  }
 
 @[simp]
 lemma symm_hom {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y} (F : OrderIso f f') :
     F.symm.hom = F.inv := rfl
 
 -- define that OrderIso gives an `OrderIso` between fibres
-def FibreOrderIso {f : X ⟶ₒ Y} {g : X' ⟶ₒ Y} (F : OrderIso f g) {n : ℕ} (y : Y _[n]) :
+def FibreOrderIso {f : X ⟶ₒ Y} {g : X' ⟶ₒ Y} (F : OrderIso f g) {n : SimplexCategoryᵒᵖ} (y : Y.obj n) :
     (f⁻¹ y) ≃o (g⁻¹ y) where
-      toEquiv := F.fibreEquiv y
-      map_rel_iff' {_} {_} := F.strictMono.le_iff_le
+  toEquiv := F.fibreEquiv y
+  map_rel_iff' {_} {_} := F.strictMono.le_iff_le
 
 -- the default ext for simplcial map is not easy to use
 
@@ -296,6 +314,114 @@ lemma subsingleton_OrderIso {f : X ⟶ₒ Y} {f' : X' ⟶ₒ Y} (F G : OrderIso 
   congr 1
   apply IsWellOrder.OrderIso_apply_eq _ _ _ _
 
+-- should not be in the namespace `OrderIso`
+def move {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m) {y : Y.obj n} (x : f⁻¹ y) :
+    f⁻¹ (Y.map φ y) :=
+  ⟨X.map φ x, by
+    simp; change (X.map φ ≫ _) _ = _
+    rw [f.hom.naturality, types_comp_apply, x.2]⟩
+
+lemma FibreOrderIso_move {X' X Y : SSet} {f : X ⟶ₒ Y} {g : X' ⟶ₒ Y} (F : OrderIso f g)
+  {n m: SimplexCategoryᵒᵖ} {y : Y.obj n} {φ : n ⟶ m} (x : f⁻¹ y) :
+    F.FibreOrderIso _ (OrderIso.move φ x) = OrderIso.move φ (F.FibreOrderIso _ x) := by
+  simp [FibreOrderIso, fibreEquiv, Fibre.trans, move]
+  change (X.map φ ≫ F.hom.app m) _ = _
+  rw [F.hom.naturality]; rfl
+
+variable (f f') in
+structure Pieces where
+  orderIso {n : SimplexCategoryᵒᵖ} (y : Y.obj n) : f⁻¹ y ≃o f'⁻¹ y
+  compatible {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m)
+    {y : Y.obj n} (x : f⁻¹ y) :
+      orderIso (Y.map φ y) (move φ x) = move φ (orderIso y x)
+
+variable (P : Pieces f f')
+
+lemma Pieces.compatible_val {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m)
+  {y : Y.obj n} (x : f⁻¹ y) :
+    (P.orderIso (Y.map φ y) (move φ x)).val = X'.map φ (P.orderIso y x) :=
+  congrArg Subtype.val (P.compatible _ _)
+
+lemma Pieces.symm_compatible {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m)
+  {y : Y.obj n} (x : f'⁻¹ y) :
+    (P.orderIso (Y.map φ y)).symm (move φ x) = move φ ((P.orderIso y).symm x) := by
+  apply_fun P.orderIso _
+  simp only [OrderIso.apply_symm_apply, P.compatible]
+
+lemma Pieces.symm_compatible_val {n m : SimplexCategoryᵒᵖ} (φ : n ⟶ m)
+  {y : Y.obj n} (x : f'⁻¹ y) :
+    ((P.orderIso (Y.map φ y)).symm (move φ x)).val = X.map φ ((P.orderIso y).symm x) :=
+  congrArg Subtype.val (P.symm_compatible _ _)
+
+lemma Pieces.orderIso_congr {y y' : Y.obj n} (h : y = y')
+  {x : f⁻¹ y} {x' : f⁻¹ y'} (h' : HEq x x'):
+    (P.orderIso y x).val = ↑(P.orderIso y' x') := by
+  cases h; cases h'; rfl
+
+lemma congrTemp {y y' : Y.obj n} {x : X.obj n} (eq : y = y') {h} {h'} :
+    HEq (⟨x, h⟩ : f⁻¹ y) (⟨x, h'⟩ : f⁻¹ y') := by
+  cases eq; rfl
+
+@[simp, simps]
+def ofPiece.hom : X ⟶ X' where
+  app := fun n x ↦ (P.orderIso (f.hom.app n x) ⟨x, rfl⟩).val
+  naturality := by
+    intro n m φ
+    ext x; simp
+    convert P.compatible_val φ ⟨x, rfl⟩ using 1
+    have : f.hom.app m (X.map φ x) = Y.map φ (f.hom.app n x) := by
+      change (X.map φ ≫ _) x = _
+      rw [f.hom.naturality]; rfl
+    apply P.orderIso_congr
+    . exact this
+    . apply congrTemp this
+
+lemma Pieces.orderIso_symm_congr {y y' : Y.obj n} (h : y = y')
+  {x : f'⁻¹ y} {x' : f'⁻¹ y'} (h' : HEq x x'):
+    ((P.orderIso y).symm x).val = ↑((P.orderIso y').symm x') := by
+  cases h; cases h'; rfl
+
+@[simp, simps]
+def ofPiece.inv : X' ⟶ X where
+  app := fun n x ↦ ((P.orderIso (f'.hom.app n x)).symm ⟨x, rfl⟩).val
+  naturality := by
+    intro n m φ
+    ext x; simp
+    convert P.symm_compatible_val φ ⟨x, rfl⟩ using 1
+    have : f'.hom.app m (X'.map φ x) = Y.map φ (f'.hom.app n x) := by
+      change (X'.map φ ≫ _) x = _
+      rw [f'.hom.naturality]; rfl
+    apply P.orderIso_symm_congr
+    . exact this
+    . apply congrTemp this
+
+lemma symm_apply_apply_of_eq {y y' : Y.obj n} {x : f⁻¹ y'} (eq : y = y') {h} :
+    ((P.orderIso y).symm ⟨P.orderIso y' x, h⟩).val = x.val := by
+  cases eq; simp
+
+lemma apply_symm_apply_of_eq {y y' : Y.obj n} {x : f'⁻¹ y} (eq : y = y') {h} :
+    ((P.orderIso y') ⟨(P.orderIso y).symm x, h⟩).val = x.val := by
+  cases eq; simp
+
+def ofPiece : OrderIso f f' where
+  hom := ofPiece.hom P
+  inv := ofPiece.inv P
+  hom_inv_id := by
+    ext n x; erw [NatTrans.vcomp_app]; simp
+    rw [symm_apply_apply_of_eq _ ((P.orderIso (f.hom.app n x)) ⟨x, rfl⟩).2]; rfl
+  inv_hom_id := by
+    ext n x; erw [NatTrans.vcomp_app]; simp
+    rw [apply_symm_apply_of_eq _ ((P.orderIso (f'.hom.app n x)).symm ⟨x, rfl⟩).2.symm]; rfl
+  comm := by
+    ext n x; erw [NatTrans.vcomp_app]; simp
+    exact ((P.orderIso (f.hom.app n x)) ⟨x, rfl⟩).2.symm
+  mono := by
+    intro n y
+    convert (P.orderIso y).monotone
+    ext x : 2
+    simp [Fibre.trans]
+    apply P.orderIso_congr x.2 (congrTemp x.2)
+
 end OrderIso
 
 end WellOrdered
@@ -310,7 +436,7 @@ variable (α) in
 structure SmallWO (Y : SSet.{u}) where
   of : SSet.{u}
   wo : of ⟶ₒ Y
-  small : ∀ ⦃n⦄, ∀ y : Y _[n], Cardinal.mk (wo⁻¹ y) < α
+  small : ∀ ⦃n⦄, ∀ y : Y.obj n, Cardinal.mk (wo⁻¹ y) < α
 
 abbrev SmallWO.hom (f : SmallWO α Y) := f.wo.hom
 
@@ -399,12 +525,12 @@ def _root_.Sigma.EquivFstPreimage (A : Type u) (f : A → Type u) (a : A) :
     exact this.symm
 
 def SmallFibresWithStructures.FibreToHomEquiv (S : SmallFibresWithStructures α X)
-  {n} (y : X _[n]) :
+  {n} (y : X.obj n) :
     Fibre S.toHom y ≃ Quotient.out ((equivShrink ↑(Iio α)).symm (S.fibre y)).val :=
   (Sigma.EquivFstPreimage _ (fun x ↦ ((equivShrink _).symm (S.fibre x)).1.out) y).symm
 
 lemma SmallFibresWithStructures.cardinal_mk_fibre_to_hom_lt
-  (S : SmallFibresWithStructures α X) {n} (y : X _[n]) :
+  (S : SmallFibresWithStructures α X) {n} (y : X.obj n) :
     Cardinal.mk (Fibre S.toHom y) < α := by
   rw [Cardinal.mk_congr (S.FibreToHomEquiv y)]
   simp only [Cardinal.mk_out]
@@ -435,21 +561,21 @@ def SmallWO.FibreToHomEquiv (a : SmallWO α X):
   simp only [Equiv.symm_apply_apply]
   apply Cardinal.outMkEquiv
 
-lemma aux {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+lemma aux {a : SmallWO α X} {x y : X.obj n} (eq : x = y)
   {s : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
       ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small x⟩)).val} {h} :
     HEq (a.FibreToHomEquiv.symm (⟨(a.FibreToHomEquiv s).val, h⟩ : Fibre a.wo.hom y)) s := by
   cases eq
   simp only [Subtype.coe_eta, Equiv.symm_apply_apply, heq_eq_eq]
 
-lemma aux' {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+lemma aux' {a : SmallWO α X} {x y : X.obj n} (eq : x = y)
   {s : Fibre a.wo.hom x} {s' : Fibre a.wo.hom y} (eq' : HEq s s'):
     HEq (a.FibreToHomEquiv.symm s) (a.FibreToHomEquiv.symm s') := by
   cases eq
   cases eq'
   rfl
 
-lemma aux'₂ {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
+lemma aux'₂ {a : SmallWO α X} {x y : X.obj n} (eq : x = y)
   {s : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
       ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small x⟩)).val}
   {s' : Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
@@ -461,8 +587,7 @@ lemma aux'₂ {a : SmallWO α X} {x y : X _[n]} (eq : x = y)
 
 lemma aux'' {a : SmallWO α X} {x x' : X.obj n} {b b' : a.of.obj n} {h} {h'}
   (eq : x = x') (eq' : b = b') :
-    HEq (⟨b, h⟩ : Fibre (n := n.unop.len) a.wo.hom x)
-      (⟨b', h'⟩ : Fibre (n := n.unop.len) a.wo.hom x') := by
+    HEq (⟨b, h⟩ : Fibre a.wo.hom x) (⟨b', h'⟩ : Fibre a.wo.hom x') := by
   cases eq
   cases eq'
   rfl
@@ -471,7 +596,7 @@ lemma aux'' {a : SmallWO α X} {x x' : X.obj n} {b b' : a.of.obj n} {h} {h'}
 def SmallWO.toSmallFibresWithStructures (a : SmallWO α X) :
     SmallFibresWithStructures α X where
   fibre {n} x := equivShrink _
-      ⟨Cardinal.mk (a.wo.fibre (n := n.unop.len) x), a.small (n := n.unop.len) x⟩
+      ⟨Cardinal.mk (a.wo.fibre x), a.small x⟩
   map {n m} φ x :=
     ⟨X.map φ x.fst, a.FibreToHomEquiv.symm ((Fibre.map φ (a.FibreToHomEquiv x.snd)))⟩
   map_nat {n m f} x := by simp
@@ -493,7 +618,7 @@ def SmallWO.toSmallFibresWithStructures (a : SmallWO α X) :
 def SmallWO.toSmallFibresWithStructures_equivObj (a : SmallWO α X) (n : SimplexCategoryᵒᵖ) :
     (x : X.obj n) ×
       Quotient.out ((equivShrink ↑(Iio α)).symm ((equivShrink ↑(Iio α))
-        ⟨Cardinal.mk ↑(Fibre a.wo.hom (n := n.unop.len) x), a.small _⟩)).val
+        ⟨Cardinal.mk ↑(Fibre a.wo.hom x), a.small _⟩)).val
           ≃ a.of.obj n where
   toFun s := (a.FibreToHomEquiv s.snd).val
   invFun x := ⟨a.hom.app _ x, a.FibreToHomEquiv.symm ⟨x, rfl⟩⟩
@@ -571,6 +696,10 @@ abbrev Ω_obj := Shrink (Ω_obj₀ α Y)
 def Ω_obj.mk (a : SmallWO α Y) : Ω_obj α Y :=
    equivShrink (Ω_obj₀ α Y) ⟦a⟧
 
+lemma Ω_obj.mk_eq_mk_iff_equiv (a b : SmallWO α Y) :
+    Ω_obj.mk a = Ω_obj.mk b ↔ a ≈ b := by
+  simp [mk]; exact Quotient.eq
+
 lemma Ω_obj.mk_sound {a b : SmallWO α Y} :
     a ≈ b → Ω_obj.mk a = Ω_obj.mk b := by
   intro h
@@ -579,9 +708,9 @@ lemma Ω_obj.mk_sound {a b : SmallWO α Y} :
 
 -- define the functor, which acts on morphisms as pullback
 noncomputable section map
-variable (f : Y' ⟶ Y)
+variable (a : SmallWO α Y) (f : Y' ⟶ Y)
 
-def SmallWO.pullback (a : SmallWO α Y) :
+def SmallWO.pullback :
     SmallWO α Y' where
   of := Limits.pullback a.wo.hom f
   wo := {
@@ -593,8 +722,36 @@ def SmallWO.pullback (a : SmallWO α Y) :
     convert a.small (f.app _ y) using 1
     exact Quotient.sound ⟨(IsPullback.of_hasPullback a.wo.hom f).fibreEquiv y⟩
 
-lemma SmallWO.pullback_id (a : SmallWO α Y) :
-    SmallWO.pullback (𝟙 Y) a ≈ a := by
+-- RelIso on fibres via pullback
+def SmallWO.pullback_RelIso' {n} (y' : Y'.obj n):
+    (a.pullback f).wo⁻¹ y' ≃o a.wo⁻¹ (f.app _ y') :=
+  IsPullback.WellOrderedHom.OrderIso (IsPullback.of_hasPullback a.wo.hom f) y'
+
+def SmallWO.pullback_RelIso {n} (y : Y.obj n) (y' : Y'.obj n)
+  (h : f.app _ y' = y) :
+    (a.pullback f).wo⁻¹ y' ≃o a.wo⁻¹ y :=
+  (a.pullback_RelIso' f y').trans (RelIso.cast (by cases h; rfl) (by cases h; rfl))
+
+lemma SmallWO.pullback_RelIso_move {n m} (y : Y.obj n) (y' : Y'.obj n) (h : f.app _ y' = y)
+  (φ : n ⟶ m) (x : (a.pullback f).wo⁻¹ y') {h'}:
+    a.pullback_RelIso f (Y.map φ y) (Y'.map φ y') h' (OrderIso.move φ x) =
+  OrderIso.move φ (a.pullback_RelIso f y y' h x) := by
+    cases h
+    simp [pullback_RelIso, pullback_RelIso', IsPullback.WellOrderedHom.OrderIso,
+          IsPullback.fibreEquiv, TypesPullbackPreimageEquiv, OrderIso.move,
+          hom_naturality_apply]
+    erw [hom_naturality_apply] -- this is weird
+
+lemma SmallWO.pullback_RelIso_symm_move {n m} (y : Y.obj n) (y' : Y'.obj n) (h : f.app _ y' = y)
+  (φ : n ⟶ m) (x : a.wo⁻¹ y) {h'}:
+    (a.pullback_RelIso f (Y.map φ y) (Y'.map φ y') h').symm (OrderIso.move φ x) =
+  OrderIso.move φ ((a.pullback_RelIso f y y' h).symm x) := by
+    apply_fun (a.pullback_RelIso f (Y.map φ y) (Y'.map φ y') h')
+    rw [a.pullback_RelIso_move _ _ _ h]
+    simp only [OrderIso.apply_symm_apply]
+
+lemma SmallWO.pullback_id :
+    a.pullback (𝟙 Y) ≈ a := by
   have : IsIso (pullback.fst a.hom (𝟙 Y)) := by
     sorry -- `IsPullback.isIso_fst_of_mono` in latest version of Mathlib
   exact ⟨{
@@ -605,8 +762,8 @@ lemma SmallWO.pullback_id (a : SmallWO α Y) :
       rwa [IsPullback.WellOrderedHom.le_iff_le] at h
   }⟩
 
-lemma SmallWO.pullback_comp {f : Z ⟶ Y} {g : W ⟶ Z} (a : SmallWO α Y) :
-    SmallWO.pullback g (SmallWO.pullback f a) ≈ SmallWO.pullback (g ≫ f) a := by
+lemma SmallWO.pullback_comp {f : Z ⟶ Y} {g : W ⟶ Z} :
+    (a.pullback f).pullback g ≈ a.pullback (g ≫ f):= by
   let is := IsPullback.of_hasPullback a.hom (g ≫ f)
   let is' := IsPullback.paste_horiz (IsPullback.of_hasPullback (pullback.snd a.hom f) g)
     (IsPullback.of_hasPullback a.hom f)
@@ -630,7 +787,7 @@ lemma SmallWO.pullback_comp {f : Z ⟶ Y} {g : W ⟶ Z} (a : SmallWO α Y) :
 
 variable {f} in
 lemma SmallWO.pullback_sound {a b : SmallWO α Y} :
-    a ≈ b → SmallWO.pullback f a ≈ SmallWO.pullback f b
+    a ≈ b → a.pullback f ≈ b.pullback f
 | ⟨h⟩ => ⟨{
     toIso := asIso (pullback.map a.hom f b.hom f h.hom (𝟙 _) (𝟙 _)
       (by simp [h.comm]) (by simp))
@@ -650,12 +807,12 @@ lemma SmallWO.pullback_sound {a b : SmallWO α Y} :
 
 variable (α) in
 def Ω_map : Ω_obj α Y ⟶ Ω_obj α Y' :=
-  Shrink.rec (Quotient.lift (Ω_obj.mk ∘ SmallWO.pullback f)
+  Shrink.rec (Quotient.lift (Ω_obj.mk ∘ fun a ↦ a.pullback f)
     (fun _ _ h ↦ Ω_obj.mk_sound (SmallWO.pullback_sound h)))
 
 @[simp]
-lemma SmallWO.Ω_map_Ω_obj_mk (a : SmallWO α Y) :
-  Ω_map α f (Ω_obj.mk a) =  Ω_obj.mk (SmallWO.pullback f a) := by
+lemma SmallWO.Ω_map_Ω_obj_mk :
+  Ω_map α f (Ω_obj.mk a) =  Ω_obj.mk (a.pullback f) := by
     simp only [Ω_obj.mk, Ω_map, Shrink.rec, Equiv.symm_apply_apply, eq_rec_constant]
     erw [Quotient.lift_mk, Function.comp_apply]
     rfl
@@ -687,11 +844,196 @@ def Ω : SSetᵒᵖ ⥤ Type u where
   map_id Y := by simp; rw [← Ω_map_id]; congr -- rw does not work....
   map_comp f g:= by simp; rw [Ω_map_comp]; congr
 
+section
+open Function Classical
+variable [UnivLE.{v, u}] {J : Type v} [Category.{w,v} J] {F : J ⥤ SSet.{u}ᵒᵖ}
+  (c : Cone F) (hc : IsLimit c)
+
+abbrev Ω.PreservesLimitHomToLimit :
+    (Ω α).mapCone c ⟶ limit.cone (F ⋙ Ω α) where
+  hom := limit.lift _ _
+  w := limit.lift_π _
+
+lemma Ω.PreservesLimitHomToLimit_hom_π (f : Ω_obj α (unop c.pt)) (j : J) :
+    limit.π (F ⋙ Ω α) j (limit.lift (F ⋙ Ω α) ((Ω α).mapCone c) f) =
+      (Ω α).map (c.π.app j) f :=
+  congrFun (limit.lift_π ((Ω α).mapCone c) j) _
+
+def Ω.auxExtPieceOrderIso' (f g : SmallWO α c.pt.unop)
+  (h : (j : J) → (OrderIso (f.pullback (c.π.app j).unop).wo (g.pullback (c.π.app j).unop).wo))
+  {n : SimplexCategoryᵒᵖ} (y : (unop c.pt).obj n)
+  (j : J) (x : (F.obj j).unop.obj n) (hx : (c.π.app j).unop.app _ x = y):
+    f.wo⁻¹ y ≃o g.wo⁻¹ y := by
+  let r₁ := f.pullback_RelIso (c.π.app j).unop y x hx
+  let r₂ := (h j).FibreOrderIso x
+  let r₃ := g.pullback_RelIso (c.π.app j).unop y x hx
+  exact (r₁.symm.trans r₂).trans r₃
+
+variable {α c} in
+omit [UnivLE.{v, u}] in
+lemma Ω.auxExtPieceOrderIso'_ext {f g : SmallWO α c.pt.unop}
+  {h : (j : J) → (OrderIso (f.pullback (c.π.app j).unop).wo (g.pullback (c.π.app j).unop).wo)}
+  {n : SimplexCategoryᵒᵖ} {y : (unop c.pt).obj n}
+  (j : J) (x : (F.obj j).unop.obj n) (hx : (c.π.app j).unop.app _ x = y)
+  (j' : J) (x' : (F.obj j').unop.obj n) (hx' : (c.π.app j').unop.app _ x' = y) :
+    auxExtPieceOrderIso' α c f g h y j x hx = auxExtPieceOrderIso' α c f g h y j' x' hx' :=
+  IsWellOrder.OrderIso_eq _ _ _ _
+
+#check Types.jointly_surjective
+lemma Ω.jointly_surjective {n : SimplexCategoryᵒᵖ} (x : (unop c.pt).obj n) :
+  ∃ (j : J) (y : (F.obj j).unop.obj n), (c.π.app j).unop.app _ y = x := sorry
+
+def Ω.auxExtPieceOrderIso (f g : SmallWO α c.pt.unop)
+  (h : (j : J) → (OrderIso (f.pullback (c.π.app j).unop).wo (g.pullback (c.π.app j).unop).wo))
+  {n : SimplexCategoryᵒᵖ} (y : (unop c.pt).obj n) :
+    f.wo⁻¹ y ≃o g.wo⁻¹ y := by
+  let j := choose (jointly_surjective c y)
+  let x := choose (choose_spec (jointly_surjective c y))
+  let hx := choose_spec (choose_spec (jointly_surjective c y))
+  exact auxExtPieceOrderIso' α c f g h y j x hx
+
+def Ω.auxExtPiece (f g : SmallWO α c.pt.unop)
+  (h : (j : J) → (OrderIso (f.pullback (c.π.app j).unop).wo (g.pullback (c.π.app j).unop).wo)):
+    OrderIso.Pieces f.wo g.wo where
+  orderIso := auxExtPieceOrderIso α c f g h
+  compatible := by
+    intro n m φ y y'
+    let j := choose (jointly_surjective c y)
+    let x := choose (choose_spec (jointly_surjective c y))
+    let hx := choose_spec (choose_spec (jointly_surjective c y))
+    let j' := choose (jointly_surjective c ((unop c.pt).map φ y))
+    let x' := choose (choose_spec (jointly_surjective c ((unop c.pt).map φ y)))
+    let hx' := choose_spec (choose_spec (jointly_surjective c ((unop c.pt).map φ y)))
+    let x₂ := (F.obj j).unop.map φ x
+    have hx₂ : (c.π.app j).unop.app m x₂ = c.pt.unop.map φ y := by
+      change ((F.obj j).unop.map φ ≫ (c.π.app j).unop.app m) x = _
+      rw [(c.π.app j).unop.naturality, ← hx]; rfl
+    change auxExtPieceOrderIso' α c f g h _ j' x' hx' _ =
+      OrderIso.move φ (auxExtPieceOrderIso' α c f g h _ j x hx y')
+    rw [auxExtPieceOrderIso'_ext _ _ _ j x₂ hx₂]
+    dsimp [auxExtPieceOrderIso']
+    rw [f.pullback_RelIso_symm_move _ _ _ hx, OrderIso.FibreOrderIso_move,
+        g.pullback_RelIso_move _ _ _]
+
+def Ω.auxExt (f g : SmallWO α c.pt.unop)
+  (h : ∀ j : J, f.pullback (c.π.app j).unop ≈ g.pullback (c.π.app j).unop) :
+    OrderIso f.wo g.wo :=
+  OrderIso.ofPiece (auxExtPiece α c f g (fun j ↦ choice (h j)))
+
+lemma Ω.PreservesLimitHomToLimit_hom_injective :
+    (limit.lift (F ⋙ Ω α) ((Ω α).mapCone c)).Injective := by
+  apply Shrink.rec; apply Quotient.ind; intro f
+  apply Shrink.rec; apply Quotient.ind; intro g h
+  have (j) := congrArg (limit.π (F ⋙ Ω α) j) h
+  simp [PreservesLimitHomToLimit_hom_π] at this
+  refine Ω_obj.mk_sound ⟨auxExt α c f g ?_⟩
+  intro j; specialize this j
+  change (Ω α).map (c.π.app j) (Ω_obj.mk _) = (Ω α).map (c.π.app j) (Ω_obj.mk _) at this
+  simp [Ω, Ω_obj.mk_eq_mk_iff_equiv] at this
+  exact this
+
+lemma Ω.PreservesLimitHomToLimit_hom_surjective :
+    (limit.lift (F ⋙ Ω α) ((Ω α).mapCone c)).Surjective := sorry
+
+instance : IsIso (Ω.PreservesLimitHomToLimit α c).hom :=
+  (isIso_iff_bijective _).mpr ⟨Ω.PreservesLimitHomToLimit_hom_injective _ _,
+        Ω.PreservesLimitHomToLimit_hom_surjective _ _⟩
+
+instance : IsIso (Ω.PreservesLimitHomToLimit α c) := Cones.cone_iso_of_hom_iso _
+
+instance Ω.PreservesLimit :
+    PreservesLimit F (Ω α) where
+  preserves {c} _ := IsLimit.ofIsoLimit (limit.isLimit _)
+      (asIso (PreservesLimitHomToLimit α c)).symm
+
+instance Ω.PreservesLimitsOfSize :
+    PreservesLimitsOfSize.{w, v} (Ω α) :=
+  ⟨⟨inferInstance⟩⟩
+
+end
 def W : SSet := standardSimplex.op ⋙ Ω α
 
-instance Ω.PreservesLimitsOfSize [UnivLE.{v, u}] : PreservesLimitsOfSize.{w, v} (Ω α) := sorry
+section
+open Presheaf
+variable (Y)
 
-def Ω.Corepresentable : (Ω α).CorepresentableBy  (op (W α)) := sorry
+def Ω.CorepresentableAux₁ :
+    (Y ⟶ W α) ≃ limit (Y.functorToRepresentables.op ⋙ (yoneda.obj (W α))) :=
+  (IsoOfPreservesLimit (yoneda.obj (W α)) Y).toEquiv
+
+variable {Y' : SSet} (f : Y' ⟶ Y) (g : Y ⟶ W α)
+
+variable {Y} in
+abbrev Ω.Corepresentable_compAux (G : SSetᵒᵖ ⥤ Type u) :
+  limit ((functorToRepresentables Y).op ⋙ G) ⟶
+    limit ((functorToRepresentables Y').op ⋙ G) :=
+  limit.pre _ (CategoryOfElements.map f).op.op
+
+variable {α Y} in
+lemma Ω.CorepresentableAux₁_comp_apply :
+    (CorepresentableAux₁ α Y') (f ≫ g) =
+      Corepresentable_compAux f _ ((CorepresentableAux₁ α Y) g) :=
+  congrFun (IsoOfPreservesLimit_comp_hom (yoneda.obj (W α)) f) g
+
+def Ω.CorepresentableAux₂ :
+    (functorToRepresentables Y).op ⋙ (yoneda.obj (W α)) ≅
+      (functorToRepresentables Y).op ⋙ Ω α := by
+  refine NatIso.ofComponents (fun x ↦ (yonedaEquiv _ _).toIso) ?_
+  intro x y f; ext a; simp
+  erw [← yonedaEquiv_naturality (n := x.unop.unop.fst.unop.len) (m := y.unop.unop.fst.unop.len)]
+  rfl
+
+variable {α Y} in
+lemma Ω.CorepresentableAux₂_comp : (CorepresentableAux₂ α Y').hom =
+  whiskerLeft (CategoryOfElements.map f).op.op (CorepresentableAux₂ α Y).hom := by
+    ext; simp [CorepresentableAux₂, NatIso.ofComponents]
+
+def Ω.CorepresentableAux₃' :
+    limit ((functorToRepresentables Y).op ⋙ (yoneda.obj (W α))) ≅
+      limit ((functorToRepresentables Y).op ⋙ Ω α) :=
+  lim.mapIso (Ω.CorepresentableAux₂ _ _)
+
+variable {Y} in
+lemma Ω.CorepresentableAux₃_comp :
+  Corepresentable_compAux f _ ≫ (CorepresentableAux₃' α Y').hom =
+    (CorepresentableAux₃' α Y).hom ≫ Corepresentable_compAux f _ := by
+  simp [Corepresentable_compAux, CorepresentableAux₃']
+  apply limit.pre_naturality' (CorepresentableAux₂ α Y).hom _ (CorepresentableAux₂_comp f)
+
+def Ω.CorepresentableAux₃ :
+    limit ((functorToRepresentables Y).op ⋙ (yoneda.obj (W α))) ≃
+      limit ((functorToRepresentables Y).op ⋙ Ω α) :=
+  (CorepresentableAux₃' _ _).toEquiv
+
+variable {α Y} in
+lemma Ω.CorepresentableAux₃_comp_apply (x) :
+  CorepresentableAux₃ α Y' (Corepresentable_compAux f _ x) =
+    Corepresentable_compAux f _ (CorepresentableAux₃ α Y x) :=
+  congrFun (CorepresentableAux₃_comp α f) x
+
+instance : PreservesLimit (functorToRepresentables Y).op (Ω α) := by
+  apply (Ω.PreservesLimitsOfSize α).preservesLimitsOfShape.preservesLimit
+
+def Ω.CorepresentableAux₄ :
+    limit ((functorToRepresentables Y).op ⋙ Ω α) ≃ (Ω α).obj (op Y) :=
+  ((IsoOfPreservesLimit (Ω α) Y).symm).toEquiv
+
+variable {α Y} in
+lemma Ω.CorepresentableAux₄_comp_apply (x) :
+  CorepresentableAux₄ α Y' (Corepresentable_compAux f _ x) =
+    (Ω α).map f.op (CorepresentableAux₄ α Y x) :=
+  (congrFun (IsoOfPreservesLimit_comp_inv (Ω α) f) x).symm
+
+end
+
+def Ω.Corepresentable : (Ω α).CorepresentableBy  (op (W α)) where
+  homEquiv {Y} := equivToOpposite.symm.trans ((CorepresentableAux₁ _ (unop Y)).trans
+    ((CorepresentableAux₃ _ (unop Y)).trans (CorepresentableAux₄ _ (unop Y))))
+  homEquiv_comp {Y Y'} g f := by
+    dsimp [equivToOpposite]
+    erw [CorepresentableAux₁_comp_apply, CorepresentableAux₃_comp_apply,
+         CorepresentableAux₄_comp_apply]
+    rfl
 
 def Ω.Corepresentable.app (X : SSet.{u}):
     (X ⟶ (W α)) ≃ (Ω α).obj (op X) :=
@@ -720,12 +1062,20 @@ lemma toHom_toObj (f : X ⟶ W α) :
 lemma toObj_toHom (a : (Ω α).obj (op X)) :
     toObj (toHom a) = a := (Ω.Corepresentable.app α X).right_inv _
 
+open standardSimplex
+
 lemma toObj.simplex {n : ℕ} (f : Δ[n] ⟶ W α) :
-    toObj f = yonedaEquiv _ _ f := sorry
--- this should follow from the explicit definition for the representation
+    toObj f = yonedaEquiv _ _ f := by
+  change (CorepresentableAux₄ α Δ[n]) ((CorepresentableAux₃ α Δ[n])
+      ((CorepresentableAux₁ α Δ[n]) f)) =
+    IsoOfPreservesLimitOfPi _ (fun j ↦ (CorepresentableAux₂ α Δ[n]).hom.app _
+      (IsoOfPreservesLimitToPi (yoneda.obj (W α)) f j))
+  rw [IsoOfPreservesLimitToPi_fac_apply]
+  conv => rhs; congr; ext; rw [← PiWhiskerRight_naturality_apply _ (Ω α)]
+  erw [limitToPi_fac_apply]
+  rfl
 
 end Ω
-
 abbrev UniSmallWO₀ := Ω.toObj (𝟙 (W α))
 
 abbrev UniSmallWO := Quotient.out $ (equivShrink (Ω_obj₀ α (W α))).symm (UniSmallWO₀ α)
@@ -744,7 +1094,7 @@ lemma Ω.Corepresentable.universal (f : X ⟶ W α) :
   (Ω.Corepresentable α).homEquiv_comp (op f) (𝟙 _)
 
 lemma UniSmallWO.universal (g : SmallWO α X) :
-    g ≈ SmallWO.pullback (Ω.toHom (Ω_obj.mk g)) (UniSmallWO α) := by
+    g ≈  (UniSmallWO α).pullback (Ω.toHom (Ω_obj.mk g)):= by
   rw [← Quotient.eq]
   apply_fun equivShrink (Ω_obj₀ α _)
   change Ω_obj.mk _ = Ω_obj.mk _
@@ -781,7 +1131,7 @@ lemma SmallWO.Kan_iff_Ω_obj_mk_Kan (a : SmallWO α Y) :
     Quotient.lift_mk, eq_rec_constant]
 
 lemma Ω_obj.Kan_iff_pullback_toHom_Kan :
-    ∀ a : Ω_obj α Y, a.Kan ↔ (SmallWO.pullback (Ω.toHom a) (UniSmallWO α)).Kan := by
+    ∀ a : Ω_obj α Y, a.Kan ↔ ( (UniSmallWO α).pullback (Ω.toHom a)).Kan := by
     apply Shrink.rec
     apply Quotient.ind
     intro a
@@ -793,7 +1143,7 @@ lemma Ω_obj.Kan_iff_pullback_snd_toHom_Kan (a : Ω_obj α Y) :
   rw [Kan_iff_pullback_toHom_Kan]; rfl
 
 -- Greek `Υ`, not latin `Y`
-variable (α) (Y) in
+variable (α Y) in
 abbrev Υ_obj := {a : Ω_obj α Y // a.Kan}
 
 def Υ_obj.mk (a : SmallWO α Y) (ha : a.Kan) : Υ_obj α Y :=
@@ -864,7 +1214,7 @@ lemma UniSmallWOKan.Ω_obj_mk : Ω_obj.mk (UniSmallWOKan α) = UniSmallWOKan₀ 
   simp only [Ω_obj.mk, UniSmallWO, Quotient.out_eq, Equiv.apply_symm_apply]
 
 lemma UniSmallWOKan.equiv_smallWO_pullback :
-    UniSmallWOKan α ≈ SmallWO.pullback (U.toW α) (UniSmallWO α) := by
+    UniSmallWOKan α ≈  (UniSmallWO α).pullback (U.toW α):= by
   rw [← Quotient.eq, Quotient.out_eq]
   apply_fun (equivShrink (Ω_obj₀ α (U α)))
   simp only [Equiv.apply_symm_apply, UniSmallWOKan₀,
@@ -940,7 +1290,7 @@ lemma factor_iff_forall_Kan (f : Y ⟶ W α) :
     ext n y; erw [NatTrans.vcomp_app]
     simp [U.toW, Υ.toΩ]
 
-lemma SmallWO.Kan_iff_factor (a : SmallWO α Y) :
+lemma SmallWO.Kan_iff_factor :
     a.Kan ↔ ∃ φ, Ω.toHom (Ω_obj.mk a)  = φ ≫ U.toW α := by
   rw [SmallWO.Kan_iff_Ω_obj_mk_Kan, Ω_obj.Kan_iff_pullback_snd_toHom_Kan]
   constructor
@@ -1027,7 +1377,7 @@ lemma Corepresentable.universal (f : X ⟶ U α) :
 end Υ
 
 lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
-    Υ_obj.mk g hg = Υ_obj.mk (SmallWO.pullback (Υ.toHom (Υ_obj.mk g hg)) (UniSmallWOKan α))
+    Υ_obj.mk g hg = Υ_obj.mk ((UniSmallWOKan α).pullback (Υ.toHom (Υ_obj.mk g hg)))
         KanFibration.pullback_snd := by
   convert Υ.Corepresentable.universal (Υ.toHom (Υ_obj.mk g hg))
   . simp only [Υ.toObj_toHom]
@@ -1036,7 +1386,7 @@ lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
       SmallWO.Ω_map_Ω_obj_mk]
 
 lemma UniSmallWOKan.universal' (g : SmallWO α X) (hg : g.Kan) :
-    g ≈ SmallWO.pullback (Υ.toHom (Υ_obj.mk g hg)) (UniSmallWOKan α) := by
+    g ≈  (UniSmallWOKan α).pullback (Υ.toHom (Υ_obj.mk g hg)):= by
   rw [← Quotient.eq]
   apply_fun equivShrink (Ω_obj₀ α _)
   exact congrArg Subtype.val (universal g hg)
