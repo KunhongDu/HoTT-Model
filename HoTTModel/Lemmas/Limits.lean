@@ -1,4 +1,5 @@
 import Mathlib.CategoryTheory.Limits.Shapes.Pullback.CommSq
+import Mathlib.CategoryTheory.Limits.IsConnected
 
 namespace CategoryTheory
 
@@ -75,7 +76,7 @@ def PullbackCone.IsLimit.pullback_eqToHom {X Y Z W : C} [Category C] {f : X ⟶ 
   simp
   constructor
   simp only [eq_f, eqToHom_trans_assoc, eqToHom_refl, Category.id_comp]
-  simp only [← Category.assoc, ← s.condition, Category.assoc, eqToHom_trans, eqToHom_refl, Category.comp_id]
+  rw [← Category.assoc, ← s.condition, Category.assoc, eqToHom_trans, eqToHom_refl, Category.comp_id]
   intro _ _ h
   simp [← h]
 
@@ -298,11 +299,11 @@ variable {α : Type u} [CategoryTheory.Category.{v, u} α]
 
 def IsPullback.isoIsPullback_fst_overMk :
     Over.mk fst ≅ Over.mk fst' :=
-  Over.isoMk (is.isoIsPullback is')
+  Over.isoMk (is.isoIsPullback _ _ is')
 
 def IsPullback.isoIsPullback_snd_overMk :
     Over.mk snd ≅ Over.mk snd' :=
-  Over.isoMk (is.isoIsPullback is')
+  Over.isoMk (is.isoIsPullback _ _ is')
 
 open Limits
 
@@ -319,3 +320,47 @@ end CategoryTheory
 
 lemma NeZero.contradiction [NeZero 0] : False := by
   rwa [← neZero_zero_iff_false (α := ℕ)]
+
+section
+
+namespace CategoryTheory.Limits.Types
+
+variable {J : Type v} [Category.{w, v} J]
+  {F : J ⥤ Type u} (c : Cocone F) (hc : IsColimit c)
+
+lemma app_eq_of_eqvGen (p q : Σ j, F.obj j) (h : Relation.EqvGen (Quot.Rel F) p q) :
+    c.ι.app _ p.snd = c.ι.app _ q.snd := by
+  induction h with
+  | rel x y r =>
+      obtain ⟨f ,hf⟩ := r
+      rw [hf]
+      change _ = (F.map f ≫ _) _
+      rw [c.ι.naturality]
+      rfl
+  | refl x => rfl
+  | symm _ _ _ ih => exact ih.symm
+  | trans _ _ _ _ _ ih₁ ih₂ => exact ih₁.trans ih₂
+
+variable [HasColimit F]
+noncomputable def isColimitEquivQuot : c.pt ≃ Quot F :=
+    (IsColimit.coconePointUniqueUpToIso hc (colimit.isColimit F)).toEquiv.trans
+      (colimitEquivQuot F)
+
+@[simp]
+lemma isColimitEquivQuot_symm_apply (j : J) (x : F.obj j) :
+    (isColimitEquivQuot c hc).symm (Quot.mk _ ⟨j, x⟩) = c.ι.app j x := by
+  simp [isColimitEquivQuot]
+  exact congrFun (IsColimit.comp_coconePointUniqueUpToIso_inv hc _ _) x
+
+@[simp]
+lemma isColimitEquivQuot_apply (j : J) (x : F.obj j) :
+    (isColimitEquivQuot c hc) (c.ι.app j x) = Quot.mk _ ⟨j, x⟩ := by
+  apply (isColimitEquivQuot c hc).symm.injective
+  simp
+
+def isColimit_eq {j j' : J} {x : F.obj j} {x' : F.obj j'} (w : c.ι.app j x = c.ι.app j' x') :
+    Relation.EqvGen (Quot.Rel F) ⟨j, x⟩ ⟨j', x'⟩ := by
+  apply Quot.eq.1
+  simpa using congr_arg (isColimitEquivQuot c hc) w
+
+end CategoryTheory.Limits.Types

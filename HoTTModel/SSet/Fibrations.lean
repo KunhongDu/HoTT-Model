@@ -1,6 +1,5 @@
 import HoTTModel.SSet.Lemmas
 
-
 open CategoryTheory Simplicial Limits SimplexCategory Function Opposite Classical
 
 noncomputable section

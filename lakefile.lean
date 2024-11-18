@@ -9,7 +9,7 @@ package «HoTT_Model» where
   -- add any additional package configuration options here
 
 require mathlib from git
-  "https://github.com/leanprover-community/mathlib4" @ "30c481f1821c2b61dad5571b81b0bff368769ab5"
+  "https://github.com/leanprover-community/mathlib4"
 
 @[default_target]
 lean_lib «HoTTModel» where
