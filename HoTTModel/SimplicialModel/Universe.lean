@@ -226,6 +226,9 @@ def symm : OrderIso f' f where
 @[simp]
 lemma symm_hom : F.symm.hom = F.inv := rfl
 
+def toOverIso : Over.mk f.hom ≅ Over.mk f'.hom :=
+  Over.isoMk F.toIso F.comm.symm
+
 def FibreOrderIso {n : SimplexCategoryᵒᵖ} (y : Y.obj n) :
     (f⁻¹ y) ≃o (f'⁻¹ y) where
   toEquiv := F.FibreEquiv y
