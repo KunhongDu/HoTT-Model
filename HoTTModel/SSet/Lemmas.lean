@@ -1,29 +1,6 @@
 import Mathlib.AlgebraicTopology.SimplicialSet.Quasicategory
 import HoTTModel.Lemmas.Limits
-
-section
-open CategoryTheory Opposite
-
-universe u v w
-variable {C : Type u} [Category.{v, u} C] {F : Cᵒᵖ ⥤ Type (max v w)}
-
-def uliftWhiskering.{w₁, w₂} : (C ⥤ Type w₁) ⥤ (C ⥤ Type (max w₁ w₂)) :=
-  (whiskeringRight _ _ _).obj CategoryTheory.uliftFunctor.{w₂, w₁}
-
-lemma CategoryTheory.yonedaCompUliftFunctorEquiv_naturality {X Y: C}
-  (f : yoneda.obj X ⋙ uliftFunctor.{w, v} ⟶ F) (g : Y ⟶ X) :
-    F.map g.op (yonedaCompUliftFunctorEquiv _ _ f) =
-      yonedaCompUliftFunctorEquiv _ _ ((yoneda ⋙ uliftWhiskering).map g ≫ f) := by
-  change (f.app (op X) ≫ F.map g.op) (ULift.up (𝟙 X)) = f.app (op Y) (ULift.up (𝟙 Y ≫ g))
-  -- why this kind of display
-  /-
-    (f.app { unop := X } ≫ F.map g.op) { down := 𝟙 X } = f.app { unop := Y } { down := 𝟙 Y ≫ g }
-  -/
-  rw [← f.naturality]
-  dsimp
-  simp only [Category.comp_id, Category.id_comp]
-
-end
+import HoTTModel.Lemmas.YonedaULift
 
 namespace SSet
 open CategoryTheory Simplicial Limits SimplexCategory Function Opposite Classical
