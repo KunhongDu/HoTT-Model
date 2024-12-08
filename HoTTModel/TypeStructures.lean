@@ -1,4 +1,4 @@
-import HoTTModel.LCC
+import HoTTModel.LocallyCartesianClosed.Basic
 import HoTTModel.Universe
 import Mathlib.CategoryTheory.Square
 
@@ -14,7 +14,7 @@ variable (U : Universe C)
 set_option linter.unusedSectionVars false
 
 section
-variable [HasPullbacks C] [LocallyCartesianClosed C] {X : C} (f : X ⟶ U.down)
+variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] {X : C} (f : X ⟶ U.down)
 
 def isoPullback :
     U.pt f ≅ pullback U.hom f :=
@@ -38,17 +38,17 @@ variable {X Y: C} {fst : Y ⟶ U.up} {snd : Y ⟶ X} {f : X ⟶ U.down}
 
 @[simp]
 def isoIsPullback : Y ≅ U.pt f :=
-  is.isoIsPullback (U.isPullback f)
+  is.isoIsPullback _ _ (U.isPullback f)
 
 @[simp]
 def isoOverSnd :
     Over.mk snd ≅ U.snd' f :=
-  Over.isoMk ((is.isoIsPullback (U.isPullback f)))
+  Over.isoMk ((is.isoIsPullback _ _ (U.isPullback f)))
 
 @[simp]
 def isoOverFst :
     Over.mk fst ≅ U.fst' f :=
-  Over.isoMk (is.isoIsPullback (U.isPullback f))
+  Over.isoMk (is.isoIsPullback _ _ (U.isPullback f))
 
 end
 
@@ -78,24 +78,13 @@ lemma pullback_map.map_left_eq_lift {X Y : Over U.down} (f : X ⟶ Y) :
   apply (U.isPullback Y.hom).hom_ext
   <;> simp [fst'_isoPullback, isoPullback_flip]
 
-lemma pullback_map.upperSquareW {X Y : Over U.down} (f : X ⟶ Y) :
-    (U.pullback_map.map f).left ≫ U.snd Y.hom = U.snd X.hom ≫ f.left := by
-  rw [map_left_eq_lift, IsPullback.lift_snd]
-
 def pullback_map.upperSquareIsPullback {X Y : Over U.down} (f : X ⟶ Y) :
-    IsPullback (U.pullback_map.map f).left (U.snd X.hom) (U.snd Y.hom) f.left where
-  w := pullback_map.upperSquareW _ f
-  isLimit' := ⟨by
-      apply Limits.topSquareIsPullback (t₁ := (U.isPullback Y.hom).cone)
-        (t₂ := PullbackCone.mk _ _ (pullback_map.upperSquareW U f)) rfl
-        (U.isPullback Y.hom).isLimit
-      convert (U.isPullback X.hom).isLimit
-      . exact Over.w f
-      . dsimp only [IsPullback.cone, CommSq.cone, PullbackCone.pasteVert]
-        simp [fst'_isoPullback, isoPullback_flip]
-        congr 1
-        . exact Over.w f
-        . simp only [Over.w, heq_eq_eq]⟩
+    IsPullback (U.pullback_map.map f).left (U.snd X.hom) (U.snd Y.hom) f.left := by
+  apply IsPullback.of_right _ _ (U.isPullback Y.hom)
+  . convert U.isPullback X.hom
+    . simp [fst'_isoPullback, isoPullback_flip]
+    . exact Over.w f
+  . rw [map_left_eq_lift, IsPullback.lift_snd]
 
 def pullback_mapIsoPullback : U.pullback_map ≅ Over.pullback U.hom where
   hom :={
@@ -201,7 +190,11 @@ variable {Y : C} (g : Y ⟶ X)
 
 def isPullbackComp :
     IsPullback ((U.isPullback f).lift (U.fst (g ≫ f)) (U.snd (g ≫ f) ≫ g) (by simp [U.comm]))
-      (U.snd (g ≫ f)) (U.snd f) g := sorry
+      (U.snd (g ≫ f)) (U.snd f) g := by
+  apply IsPullback.of_right (t := U.isPullback f)
+  . convert U.isPullback (g ≫ f)
+    simp only [IsPullback.lift_fst]
+  . simp only [IsPullback.lift_snd]
 
 def pullbackSnd'_isoPullback :
     U.pt (g ≫ f) ≅  pullback (U.snd f) g :=
@@ -210,6 +203,8 @@ def pullbackSnd'_isoPullback :
 def pullbackSnd'_isoPullback_snd' :
     U.snd' (g ≫ f) ≅  (g*).obj (U.snd' f) :=
   Over.isoMk (U.pullbackSnd'_isoPullback f g) (U.isPullbackComp f g).isoPullback_hom_snd
+
+end
 
 namespace Pi
 variable [HasBinaryProducts C] {t : C} (ht : IsTerminal t)

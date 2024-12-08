@@ -1,5 +1,6 @@
 import HoTTModel.TypeStructures
 import HoTTModel.Contextual
+import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
 
 open ContextualCategory CategoryTheory Limits
 
@@ -646,7 +647,7 @@ open Pi
 namespace Pi
 open LocallyCartesianClosed
 
-variable [HasPullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C]
+variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C]
 
 variable (S : Pi.Structure U) {Γ} {A : Γ.Ext} (B : A.obj.Ext)
 
@@ -657,7 +658,7 @@ variable (b : Section B)
 
 def ProdIsoPullbackDProd : (ΠA.hom.hom).obj (Over.mk B.hom.hom) ≅
     ((IsPullback.form₀ A.isPullback B.isPullback)*).obj ((Π(Gen₁.snd U)).obj (Gen₂.snd' U)) :=
-  IsPullback.snd_isoPullback $ DProd.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
+  IsPullback.snd_isoPullback $ pushforward.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
   (IsPullback.form₂.isPullback A.isPullback B.isPullback)
 
 def transfer :
@@ -707,18 +708,18 @@ lemma compt (a : Section A) (b : Section B) :
 
 end Pi
 
-variable [HasPullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] in
+variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] in
 open Pi in
 def Pi_type (S : Pi.Structure U) : Pi_type (U.Chains t) where
   form B := form S B
   intro b := intro S b
   elim f a := elim S f a
   compt a b := compt S a b
-
+/-
 section
 -- maybe it would be good to rewrite every isterminal to hasterminal
 -- and use the classical terminal throughout
-variable [HasPullbacks C] [LocallyCartesianClosed C] [HasTerminal C] (S : Empty.Structure U)
+variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasTerminal C] (S : Empty.Structure U)
 
 namespace Empty
 
@@ -764,7 +765,7 @@ def elim (A : Ext (form S Γ).obj) : Section A := by
   congr
   apply (form.obj_dom_isInitial S Γ).hom_ext
 
-omit [HasPullbacks C] [LocallyCartesianClosed C] in
+omit [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] in
 lemma form_stable {Γ Γ' : U.Chains (⊤_ C)} (f : Γ' ⟶ Γ) :
     form S Γ' = Ext.pullback (form S Γ) f := by
   ext
@@ -920,3 +921,4 @@ lemma intro_stable {Γ'} (f : Γ' ⟶ Γ) :
 
 end Unit
 end
+-/
