@@ -15,7 +15,7 @@ This is a almost copy of [Mathlib.CategoryTheory.Comma.Presheaf.Basic]
 where we replace every `Cᵒᵖ ⥤ Type v` to `Cᵒᵖ ⥤ Type max v w` and corresponding lemmas,
 so that it applies to `SSet.{u} = SimplexCategoryᵒᵖ ⥤ Type max 0 u`.
 
-Notice they are not collary of each other, since `ULift.{0,0}` in Lean is not a definitional equality.
+Notice they are not collary of each other, since `ULift.{0,0}` in Lean is not definitionally equal to `id`.
 The relation is more comparable to lemmas of `Add` and `Mul`.
 
 # Computation of `Over A` for a presheaf `A`
