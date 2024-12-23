@@ -1,4 +1,3 @@
-import Mathlib.Logic.Relation
 import Mathlib.Data.List.Indexes
 universe u
 
@@ -149,7 +148,11 @@ section Context
 
 def PCtx (S : Specification) := List (PTerm S)
 
-abbrev PCtx.lift (i c : ℕ) : PCtx S → PCtx S := List.map (PureTypeSystem.lift i c)
+def PCtx.lift (i c : ℕ) : PCtx S → PCtx S := List.map (PureTypeSystem.lift i c)
+
+notation Γ" ↑↑ "i" # "c => PCtx.lift i c Γ
+
+notation Γ" ↑↑ "i => PCtx.lift i 0 Γ
 
 variable {α : Type*}
 
@@ -191,6 +194,24 @@ def isTrunc.pred : ∀ {k Γ Δ} {A : PTerm S} (_ : isTrunc k Γ (A :: Δ)), isT
 def isTrunc.nil_length {Γ : List α}: ∀ {k} (_ : isTrunc k Γ []), Γ.length = k
 | 0, h => by cases h; rfl
 | k + 1, .succ x h => by simp only [length_cons, nil_length h]
+
+def isTrunc.heads : ∀ {k : ℕ} {Γ Δ : List α} (_ : isTrunc k Γ Δ), List α
+| 0, _, _, _ => []
+| _ + 1, A :: _, _, .succ _ h => A :: h.heads
+
+lemma isTrunc.heads_append : ∀  {k : ℕ} {Γ Δ : List α} (h : isTrunc k Γ Δ),
+    h.heads.append Δ = Γ
+| 0, _, _, .zero _ => rfl
+| k + 1, A :: Γ, Δ, .succ _ h => by
+  simp [heads]
+  apply h.heads_append
+
+@[simp]
+lemma isTrunc.heads_length : ∀  {k : ℕ} {Γ Δ : List α} (h : isTrunc k Γ Δ),
+    h.heads.length = k
+| 0, _, _, .zero _ => rfl
+| k + 1, A :: Γ, Δ, .succ _ h => by
+  simpa [heads] using h.heads_length
 
 /-
 def exist_isTrunc_of_isItem (k : ℕ) (Γ : List α) (x : α) :
@@ -278,7 +299,7 @@ section Reduction
 variable {S : Specification}
 
 inductive beta : PTerm S → PTerm S → Type _
-| head (A M N : PTerm S) : beta ((λ.A M) ⬝ N) (M{N ↑ 1 # 0 // 0})
+| red (A M N : PTerm S) : beta ((λ.A M) ⬝ N) (M{N})
 | appl (A A' M : PTerm S) : beta A A' → beta (A ⬝ M) (A' ⬝ M)
 | appr (A M M' : PTerm S) : beta M M' → beta (A ⬝ M) (A ⬝ M')
 | pil (A A' M : PTerm S) : beta A A' → beta (Π.A M) (Π.A' M)
@@ -304,13 +325,153 @@ infix:50 " ≃β " => betac
 
 def betac.refl (A : PTerm S) : A ≃β A := betac.betar _ _ (betar.refl _)
 
-def lift_beta_lift (h : A →β B) :
+def beta.lift (h : A →β B) :
     (A ↑ i # n) →β B ↑ i # n := by
   sorry
 
-def lift_betac_lift (h : A ≃β B) :
+def betar.lift (h : A ↠β B) :
+    (A ↑ i # n) ↠β B ↑ i # n := by
+  sorry
+
+def betac.lift (h : A ≃β B) :
     (A ↑ i # n) ≃β B ↑ i # n := by
   sorry
+
+def betar.appl {A A' B : PTerm S} : ∀ (_ : A ↠β A'), A ⬝ B ↠β A' ⬝ B
+| .beta _ _ h => beta _ _ (beta.appl _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.appl.trans _ _ _ h₂.appl
+
+def betar.appr {A B B' : PTerm S} : ∀ (_ : B ↠β B'), A ⬝ B ↠β A ⬝ B'
+| .beta _ _ h => beta _ _ (beta.appr _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.appr.trans _ _ _ h₂.appr
+
+def betar.app  {A B A' B' : PTerm S} (h₁ : A ↠β A') (h₂ : B ↠β B') :
+    A ⬝ B ↠β A' ⬝ B' :=
+  h₁.appl.trans _ _ _ h₂.appr
+
+def betac.appl {A A' B : PTerm S} : ∀ (_ : A ≃β A'), A ⬝ B ≃β A' ⬝ B
+| .betar _ _ h => betar _ _ h.appl
+| .symm _ _ h => h.appl.symm
+| .trans _ _ _ h₁ h₂ => h₁.appl.trans _ _ _ h₂.appl
+
+def betac.appr {A B B' : PTerm S} : ∀ (_ : B ≃β B'), A ⬝ B ≃β A ⬝ B'
+| .betar _ _ h => betar _ _ h.appr
+| .symm _ _ h => h.appr.symm
+| .trans _ _ _ h₁ h₂ => h₁.appr.trans _ _ _ h₂.appr
+
+def betac.app  {A B A' B' : PTerm S} (h₁ : A ≃β A') (h₂ : B ≃β B') :
+    A ⬝ B ≃β A' ⬝ B' :=
+  h₁.appl.trans _ _ _ h₂.appr
+
+def betar.absl {A A' B : PTerm S} : ∀ (_ : A ↠β A'), λ.A B ↠β λ.A' B
+| .beta _ _ h => beta _ _ (beta.absl _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.absl.trans _ _ _ h₂.absl
+
+def betar.absr {A B B' : PTerm S} : ∀ (_ : B ↠β B'), λ.A B ↠β λ.A B'
+| .beta _ _ h => beta _ _ (beta.absr _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.absr.trans _ _ _ h₂.absr
+
+def betar.abs  {A B A' B' : PTerm S} (h₁ : A ↠β A') (h₂ : B ↠β B') :
+    λ.A B ↠β λ.A' B' :=
+  h₁.absl.trans _ _ _ h₂.absr
+
+def betac.absl {A A' B : PTerm S} : ∀ (_ : A ≃β A'), λ.A B ≃β λ.A' B
+| .betar _ _ h => betar _ _ h.absl
+| .symm _ _ h => h.absl.symm
+| .trans _ _ _ h₁ h₂ => h₁.absl.trans _ _ _ h₂.absl
+
+def betac.absr {A B B' : PTerm S} : ∀ (_ : B ≃β B'), λ.A B ≃β λ.A B'
+| .betar _ _ h => betar _ _ h.absr
+| .symm _ _ h => h.absr.symm
+| .trans _ _ _ h₁ h₂ => h₁.absr.trans _ _ _ h₂.absr
+
+def betac.abs  {A B A' B' : PTerm S} (h₁ : A ≃β A') (h₂ : B ≃β B') :
+    λ.A B ≃β λ.A' B' :=
+  h₁.absl.trans _ _ _ h₂.absr
+
+def betar.pil {A A' B : PTerm S} : ∀ (_ : A ↠β A'), Π.A B ↠β Π.A' B
+| .beta _ _ h => beta _ _ (beta.pil _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.pil.trans _ _ _ h₂.pil
+
+def betar.pir {A B B' : PTerm S} : ∀ (_ : B ↠β B'), Π.A B ↠β Π.A B'
+| .beta _ _ h => beta _ _ (beta.pir _ _ _ h)
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.pir.trans _ _ _ h₂.pir
+
+def betar.pi  {A B A' B' : PTerm S} (h₁ : A ↠β A') (h₂ : B ↠β B') :
+    Π.A B ↠β Π.A' B' :=
+  h₁.pil.trans _ _ _ h₂.pir
+
+def betac.pil {A A' B : PTerm S} : ∀ (_ : A ≃β A'), Π.A B ≃β Π.A' B
+| .betar _ _ h => betar _ _ h.pil
+| .symm _ _ h => h.pil.symm
+| .trans _ _ _ h₁ h₂ => h₁.pil.trans _ _ _ h₂.pil
+
+def betac.pir {A B B' : PTerm S} : ∀ (_ : B ≃β B'), Π.A B ≃β Π.A B'
+| .betar _ _ h => betar _ _ h.pir
+| .symm _ _ h => h.pir.symm
+| .trans _ _ _ h₁ h₂ => h₁.pir.trans _ _ _ h₂.pir
+
+def betac.pi  {A B A' B' : PTerm S} (h₁ : A ≃β A') (h₂ : B ≃β B') :
+    Π.A B ≃β Π.A' B' :=
+  h₁.pil.trans _ _ _ h₂.pir
+
+def beta.substl {A B C : PTerm S} {n : ℕ} : ∀ (_ : A →β B), A{C//n} →β B{C//n}
+| .red A M N => by
+  simpa [subst0_subst0] using beta.red (A{C // n}) (M{C // n + 1}) (N{C // n})
+| .appl _ _ _ h => h.substl.appl _ _ _
+| .appr _ _ _ h => h.substl.appr _ _ _
+| .absl _ _ _ h => h.substl.absl _ _ _
+| .absr _ _ _ h => h.substl.absr _ _ _
+| .pil _ _ _ h => h.substl.pil _ _ _
+| .pir _ _ _ h => h.substl.pir _ _ _
+
+def betar.substl {A B C : PTerm S} {n : ℕ} : ∀ (_ : A ↠β B), A{C//n} ↠β B{C//n}
+| .beta _ _ h => beta _ _ h.substl
+| .refl _ => refl _
+| .trans _ _ _ h₁ h₂ => h₁.substl.trans _ _ _ h₂.substl
+
+def betar.substr {B C : PTerm S} {n : ℕ} (h : B ↠β C) : ∀ {A}, A{B//n} ↠β A{C//n}
+| .var i => by
+  simp
+  split_ifs
+  . apply refl _
+  . apply h.lift
+  . apply refl _
+| .sort s => refl _
+| .app M N => h.substr.app h.substr
+| .abs M N => h.substr.abs h.substr
+| .pi M N => h.substr.pi h.substr
+
+def betar.subst {A A' B B' : PTerm S} {n : ℕ} {h₁ : A ↠β A'} {h₂ : B ↠β B'} :
+    A{B // n} ↠β A'{B'//n} :=
+  h₁.substl.trans _ _ _ h₂.substr
+
+def betac.substl {A B C : PTerm S} {n : ℕ} : ∀ (_ : A ≃β B), A{C//n} ≃β B{C//n}
+| .betar _ _ h => betar _ _ h.substl
+| .symm _ _ h => h.substl.symm
+| .trans _ _ _ h₁ h₂ => h₁.substl.trans _ _ _ h₂.substl
+
+def betac.substr {B C : PTerm S} {n : ℕ} (h : B ≃β C) : ∀ {A}, A{B//n} ≃β A{C//n}
+| .var i => by
+  simp
+  split_ifs
+  . apply refl _
+  . apply h.lift
+  . apply refl _
+| .sort s => refl _
+| .app M N => h.substr.app h.substr
+| .abs M N => h.substr.abs h.substr
+| .pi M N => h.substr.pi h.substr
+
+def betac.subst {A A' B B' : PTerm S} {n : ℕ} (h₁ : A ≃β A') (h₂ : B ≃β B') :
+    A{B // n} ≃β A'{B'//n} :=
+  h₁.substl.trans _ _ _ h₂.substr
 
 end Reduction
 
@@ -450,7 +611,7 @@ def weakening_typing : ∀ (_ : Γ ⊢ t : T) (_ : isInsert Δ A n Γ Γ') (_ : 
   apply weakening_typing h₀ h₂ h₃
   apply weakening_typing h₁ h₂ h₃
 | .conv Γ a A B s h₀ h₁ h₂, h₃, h₄ => by
-  apply typing.conv _ _ (A ↑ 1 # n) _ _ (lift_betac_lift h₀)
+  apply typing.conv _ _ (A ↑ 1 # n) _ _ h₀.lift
   apply weakening_typing h₁ h₃ h₄
   apply weakening_typing h₂ h₃ h₄
 
@@ -508,6 +669,10 @@ def append_wf : ∀ {Γ Δ : PCtx S} (_ : Γ ⊢ ⬝) (_ : Δ ⊢ ⬝), List.app
   weakening_wf (append_wf h₁ (wf_of_typing h₂)) isInsert.zero
     (append_typing h₁ h₂)
 
+def weakening_cons_typing {Γ : PCtx S} {A : PTerm S} (h : A :: Γ ⊢ ⬝ ):
+    Σs, (A :: Γ) ⊢ A ↑ 1 : !s :=
+  ⟨_, weakening_typing (exists_of_cons' h).2 isInsert.zero (exists_of_cons' h).2⟩
+
 def substitution_typing : ∀ (_ : Γ ⊢ t : T) (_ : isSubst Δ a A n Γ Γ') (_ : Δ ⊢ a : A),
   Γ' ⊢ t{a//n} : T{a//n} := sorry
 
@@ -545,6 +710,8 @@ infix:50 " ≃β " => betac
 
 variable {Γ Δ : PCtx S} {A B : PTerm S}
 
+def betac.refl (Γ : PCtx S) : Γ ≃β Γ := .betar _ _ (betar.refl Γ)
+
 lemma beta.length_eq : ∀ {Γ Δ : PCtx S} (_ : Γ →β Δ), Γ.length = Δ.length
 | A :: Γ, B :: _, .head h => rfl
 | A :: Γ, _ :: Δ, .tail h => by simp [h.length_eq]
@@ -567,23 +734,114 @@ def betar.head {Γ Δ : PCtx S} {A B : PTerm S} : ∀ (_ : (A :: Γ) ↠β (B ::
 | .beta _ _ (beta.tail h) => PureTypeSystem.betar.refl _
 | .refl _ =>  PureTypeSystem.betar.refl _
 | .trans _ [] _ h₁ h₂ => by simpa using h₁.length_eq
-| .trans _ (C :: Θ) _ h₁ h₂ => (head h₁).trans _ _ _ (head h₂)
+| .trans _ (C :: Θ) _ h₁ h₂ => h₁.head.trans _ _ _ h₂.head
+
+def betar.tail {Γ Δ : PCtx S} {A B : PTerm S} : ∀ (_ : (A :: Γ) ↠β (B :: Δ)), Γ ↠β Δ
+| .beta _ _ (beta.head h) => betar.refl _
+| .beta _ _ (beta.tail h) => betar.beta _ _ h
+| .refl _ =>  betar.refl _
+| .trans _ [] _ h₁ h₂ => by simpa using h₁.length_eq
+| .trans _ (C :: Θ) _ h₁ h₂ => h₁.tail.trans _ _ _ h₂.tail
+
+def _root_.PureTypeSystem.betar.singleton_betar {A B : PTerm S} : ∀ (_ : A ↠β B), [A] ↠β [B]
+| .beta _ _ h => by apply betar.beta _ _ (beta.head h)
+| .refl _ => by apply betar.refl
+| .trans _ _ _ h₁ h₂ => h₁.singleton_betar.trans _ _ _ h₂.singleton_betar
+
+def betar.of_tail_of_eq {A : PTerm S} {Γ Δ : PCtx S} : ∀ (_ : Γ ↠β Δ),
+  A :: Γ ↠β A :: Δ
+| .beta _ _ h => .beta _ _ (beta.tail h)
+| .refl _ => .refl _
+| .trans _ _ _ h₁ h₂ =>
+  h₁.of_tail_of_eq.trans _ _ _ h₂.of_tail_of_eq
+
+def _root_.PureTypeSystem.betar.of_head_of_eq {A B : PTerm S} {Γ : PCtx S} : ∀ (_ : A ↠β B),
+  A :: Γ ↠β B :: Γ
+| .beta _ _ h => .beta _ _ (beta.head h)
+| .refl _ => .refl _
+| .trans _ _ _ h₁ h₂ =>
+  h₁.of_head_of_eq.trans _ _ _ h₂.of_head_of_eq
+
+def _root_.PureTypeSystem.betar.of_head_of_tail {A B : PTerm S} {Γ Δ : PCtx S}
+  (h₁ : A ↠β B) (h₂ : Γ ↠β Δ) :
+    A :: Γ ↠β B :: Δ :=
+  h₁.of_head_of_eq.trans _ _ _ h₂.of_tail_of_eq
+
+def betar.of_append : ∀ {Γ Δ Γ' Δ' : PCtx S} (_ : Γ ↠β Δ) (_ : Γ' ↠β Δ'),
+  List.append Γ Γ' ↠β List.append Δ Δ'
+| [], [], _, _, _, _ => by simpa
+| _ :: _, [], _, _, h₁, h₂ => by simpa using h₁.length_eq
+| [], _ :: _,  _, _, h₁, h₂ => by simpa using h₁.length_eq
+| A :: Γ, B :: Δ, Γ', Δ', h₁, h₂ =>
+  h₁.head.of_head_of_tail (h₁.tail.of_append h₂)
 
 def betac.head {Γ Δ : PCtx S} {A B : PTerm S} : ∀ (_ : (A :: Γ) ≃β (B :: Δ)), A ≃β B
 | .betar _ _ h => PureTypeSystem.betac.betar _ _ h.head
-| .symm _ _ h => PureTypeSystem.betac.symm _ _ (head h)
+| .symm _ _ h => PureTypeSystem.betac.symm _ _ h.head
 | .trans _ [] _ h₁ h₂ => by simpa using h₁.length_eq
-| .trans _ (C :: Θ) _ h₁ h₂ => (head h₁).trans _ _ _ (head h₂)
+| .trans _ (C :: Θ) _ h₁ h₂ => h₁.head.trans _ _ _ h₂.head
+
+def betac.tail {Γ Δ : PCtx S} {A B : PTerm S} : ∀ (_ : (A :: Γ) ≃β (B :: Δ)), Γ ≃β Δ
+| .betar _ _ h => betac.betar _ _ h.tail
+| .symm _ _ h => betac.symm _ _ h.tail
+| .trans _ [] _ h₁ h₂ => by simpa using h₁.length_eq
+| .trans _ (C :: Θ) _ h₁ h₂ => h₁.tail.trans _ _ _ h₂.tail
+
+def betac.tail' : ∀ {Γ Δ : PCtx S} (_ : Γ ≃β Δ), Γ.tail ≃β Δ.tail
+| [], [], _ => refl _
+| _ :: _, [], h => by simpa using h.length_eq
+| [], _ :: _, h => by simpa using h.length_eq
+| _ :: _, _ :: _, h => h.tail
+
+def _root_.PureTypeSystem.betac.singleton_betac {A B : PTerm S} : ∀ (_ : A ≃β B), [A] ≃β [B]
+| .betar _ _ h => betac.betar _ _ h.singleton_betar
+| .symm _ _ h => h.singleton_betac.symm
+| .trans _ _ _ h₁ h₂ => h₁.singleton_betac.trans _ _ _ h₂.singleton_betac
+
+def betac.of_tail_of_eq {A : PTerm S} {Γ Δ : PCtx S} : ∀ (_ : Γ ≃β Δ),
+  A :: Γ ≃β A :: Δ
+| .betar _ _ h => betac.betar _ _ h.of_tail_of_eq
+| .symm _ _ h => h.of_tail_of_eq.symm
+| .trans _ _ _ h₁ h₂ =>
+  h₁.of_tail_of_eq.trans _ _ _ h₂.of_tail_of_eq
+
+def _root_.PureTypeSystem.betac.of_head_of_eq {A B : PTerm S} {Γ : PCtx S} : ∀ (_ : A ≃β B),
+  A :: Γ ≃β B :: Γ
+| .betar _ _ h => .betar _ _ h.of_head_of_eq
+| .symm _ _ h => h.of_head_of_eq.symm
+| .trans _ _ _ h₁ h₂ =>
+  h₁.of_head_of_eq.trans _ _ _ h₂.of_head_of_eq
+
+def _root_.PureTypeSystem.betac.of_head_of_tail {A B : PTerm S} {Γ Δ : PCtx S}
+  (h₁ : A ≃β B) (h₂ : Γ ≃β Δ) :
+    A :: Γ ≃β B :: Δ :=
+  h₁.of_head_of_eq.trans _ _ _ h₂.of_tail_of_eq
+
+def betac.of_append : ∀ {Γ Δ Γ' Δ' : PCtx S} (_ : Γ ≃β Δ) (_ : Γ' ≃β Δ'),
+  List.append Γ Γ' ≃β List.append Δ Δ'
+| [], [], _, _, _, _ => by simpa
+| _ :: _, [], _, _, h₁, h₂ => by simpa using h₁.length_eq
+| [], _ :: _,  _, _, h₁, h₂ => by simpa using h₁.length_eq
+| A :: Γ, B :: Δ, Γ', Δ', h₁, h₂ =>
+  h₁.head.of_head_of_tail (h₁.tail.of_append h₂)
+
+def betar.lift {i n : ℕ} : ∀ {Γ Δ : PCtx S} (_ : Γ ↠β Δ),
+    (Γ ↑↑ i # n) ↠β Δ ↑↑ i # n
+| [], [], _ => by simpa
+| _ :: _, [], h => by simpa using h.length_eq
+| [], _ :: _,  h => by simpa using h.length_eq
+| A :: Γ, B :: Δ, h =>
+    h.head.lift.of_head_of_tail h.tail.lift
+
+def betac.lift {i n : ℕ} : ∀ {Γ Δ : PCtx S} (_ : Γ ≃β Δ),
+    (Γ ↑↑ i # n) ≃β Δ ↑↑ i # n
+| [], [], _ => by simpa
+| _ :: _, [], h => by simpa using h.length_eq
+| [], _ :: _,  h => by simpa using h.length_eq
+| A :: Γ, B :: Δ, h =>
+    h.head.lift.of_head_of_tail h.tail.lift
 
 end PCtx
-
-def term_betar_typing : ∀ {Γ : PCtx S} {t s M} (_: Γ ⊢ t : M) (_ : t ↠β s), Γ ⊢ s : M := sorry
-
--- reduced to expansion???
-def term_betac_typing : ∀ {Γ : PCtx S} {t s M} (_: Γ ⊢ t : M) (_ : t ≃β s), Γ ⊢ s : M
-| Γ, t, s, M, h, .betar _ _ h' => term_betar_typing h h'
-| Γ, t, s, M, h, .symm _ _ h' => by sorry
-| Γ, t, s, M, h, .trans _ r _ h₁ h₂ => by sorry
 
 end beta
 
@@ -605,6 +863,7 @@ lemma simulSubstCtx_nil : ∀ {Γ : PCtx S} {n}, simulSubstCtx Γ n [] = Γ
 | [], _ => rfl
 | A :: Γ, _ => by simp only [simulSubstCtx, simulSubst, simulSubstCtx_nil]
 
+@[simp]
 lemma simulSubst_sort {s : S.sort} {n : ℕ} : ∀ {Γ : PCtx S},
     simulSubst (!s) n Γ = (!s : PTerm S)
 | [] => rfl
@@ -632,6 +891,23 @@ lemma simulSubst_append {t : PTerm S} {n : ℕ} : ∀ {Γ Δ : PCtx S},
 | A :: Γ, Δ => by
   simp; erw [simulSubst_append, Nat.add_assoc, Nat.add_comm 1]
 
+def betac.simulSubst {A B : PTerm S} (h : A ≃β B) {n : ℕ} :
+  ∀ {F : PCtx S}, simulSubst A n F ≃β simulSubst B n F
+| [] => h
+| _ :: _ => h.simulSubst.substl
+
+def PCtx.betac.simulSubst {A : PTerm S} {n : ℕ} :
+  ∀ {F F' : PCtx S} (_ : F ≃β F'), simulSubst A n F ≃β simulSubst A n F'
+| [], [], _ => by simp; apply PureTypeSystem.betac.refl _
+| _ :: _, [], h => by simpa using h.length_eq
+| [], _ :: _, h => by simpa using h.length_eq
+| f :: F, f' :: F', h => h.tail.simulSubst.subst h.head
+
+def simulSubst_betac {A B : PTerm S} {F G : PCtx S} {n : ℕ}
+  (h₁ : A ≃β B) (h₂ : F ≃β G) :
+    simulSubst A n F ≃β simulSubst B n G :=
+  h₁.simulSubst.trans _ _ _ h₂.simulSubst
+
 inductive isSimulSubst : PCtx S → ℕ → PCtx S → PCtx S → Type _
 | nil Γ n : isSimulSubst Γ n [] Γ
 | cons Γ n f F Γ' Γs Δ A s :
@@ -656,6 +932,19 @@ inductive isMor (Γ : PCtx S) : PCtx S → PCtx S → Type _
 | cons : isMor Γ Δ F → (Γ ⊢ simulSubst D 0 F : !s) →
     (Γ ⊢ f : (simulSubst D 0 F)) → isMor Γ (D :: Δ) (f :: F)
 
+lemma isMor.of_mor_nil {Γ Δ : PCtx S} (h : isMor Γ Δ []) :
+    Δ = [] := by
+  cases h; rfl
+
+lemma isMor.of_nil {Γ F : PCtx S} (h : isMor Γ [] F) :
+    F = [] := by
+  cases h; rfl
+
+lemma isMor.length_eq {Γ : PCtx S} : ∀ {Δ F : PCtx S} (_ : isMor Γ Δ F), Δ.length = F.length
+| _, [], h => by cases h.of_mor_nil; rfl
+| [], _, h => by cases h.of_nil; rfl
+| _ :: _, _ :: _, .cons h _ _ => by simp [h.length_eq]
+
 lemma isSubst.length_eq_add_one {Γ Δ Δ' : PCtx S} : ∀ (_ : isSubst Γ f A n Δ Δ'),
   Δ.length = Δ'.length + 1
 | .zero => by simp
@@ -678,13 +967,13 @@ lemma isSimulSubst.nil_of_nil {F Δ : PCtx S} (h : isSimulSubst [] n F Δ) :
   apply Nat.eq_zero_of_le_zero
   apply h.length_le
 
-def isSimulSubst.append : ∀ {Γ Θ F} (_ : isSimulSubst Γ k F Θ),
+def isSimulSubst.append (A : PTerm S) : ∀ {Γ Θ F} (_ : isSimulSubst Γ k F Θ),
   isSimulSubst (A :: Γ) (k + 1) F ((simulSubst A k F) :: Θ)
 | Γ, Θ, [], h => by cases h; apply nil
 | Γ, Θ, f :: F, .cons Γ' _ _ _ _ Γs _ C s h₁ h₂ h₃ h₄ h₅ => by
   simp
   apply cons
-  apply append h₁
+  apply h₁.append
   apply h₂.succ
   apply h₃
   apply h₄
@@ -724,7 +1013,7 @@ def isMor'_isMor : ∀ {Γ Δ F : PCtx S} (_ : isMor Γ Δ F), isMor' Γ Δ F
 | _, _, [], h => by cases h; apply isSimulSubst.nil
 | Γ, D :: Δ, f :: F, isMor.cons h₁ h₂ h₃ => by
   apply isSimulSubst.cons
-  apply isSimulSubst.append (isMor'_isMor h₁)
+  apply (isMor'_isMor h₁).append
   apply isTrunc.succ _ (isTrunc.zero _)
   have := isMor'_isMor h₁
   simp [isMor'] at this
@@ -750,7 +1039,7 @@ def isMor_isMor' : ∀ {Γ Δ F : PCtx S} (_ : isMor' Γ Δ F), isMor Γ Δ F
 | Γ, Δ, [], h => by cases test₄ h; apply isMor.nil
 | Γ, D :: Δ, f :: F,
   isSimulSubst.cons _ _ _ _ _ _ _ A s h₁ h₂ h₃ h₄ isSubst.zero  => by
-  rw [(List.cons.inj (h₁.eq h₁.drop.append)).1] at h₃ h₄
+  rw [(List.cons.inj (h₁.eq (h₁.drop.append _))).1] at h₃ h₄
   apply isMor.cons (isMor_isMor' h₁.drop) h₃ h₄
 
 lemma testsimulsubstsubst (i k : ℕ) : ∀ {F : PCtx S},
@@ -767,7 +1056,7 @@ lemma testsimulsubstsubst (i k : ℕ) : ∀ {F : PCtx S},
   rw [Nat.add_assoc, Nat.add_comm 1, ← Nat.add_assoc]
   apply testsimulsubstsubst
 
-lemma liftaux (hn : k ≤ n ) : ∀ {t : PTerm S} (_ : (t ↑ 1 # k) = t) , t{f//n} = t
+lemma liftaux (hn : k ≤ n) : ∀ {t : PTerm S} (_ : (t ↑ 1 # k) = t) , t{f//n} = t
 | .var i, h => by simp at h; simp only [subst, if_pos (lt_of_lt_of_le h hn)]
 | .sort _, h => rfl
 | .pi _ _, h => by
@@ -790,18 +1079,18 @@ lemma liftinv {t: PTerm S} (hn : k ≤ n) : ∀ {F : PCtx S} (_ : (t ↑ 1 # k) 
 /-
 the following is wrong! k is given by the info of `θ ⊢ T : !s`
 
-lemma testeq {T : PTerm S} : ∀ {F G : PCtx S} ,
+lemma simulSubst_pcomp {T : PTerm S} : ∀ {F G : PCtx S} ,
   simulSubst T k (pcomp F G) = simulSubst (simulSubst T k G) k F
 | F, [] => by
   simp [liftinv]
   sorry
 | [], g :: G => by
   simp
-  rw [testeq]
+  rw [simulSubst_pcomp]
   rfl
 | f :: F, g :: G => by
   simp
-  rw [testeq]
+  rw [simulSubst_pcomp]
   simp
   have : k + 1 = 0 + k + 1 := by simp
   rw [this, ← subst_subst 0 k]
@@ -822,7 +1111,7 @@ lemma nil_pcomp : ∀ {G : PCtx S}, pcomp [] G = G
 | [] => rfl
 | g :: G => by simp [pcomp]; rw [nil_pcomp]
 
-lemma testeq {Γ Δ Θ : PCtx S} {T : PTerm S} (h : Θ' ⊢ T : !s):
+lemma simulSubst_pcomp {Γ Δ Θ : PCtx S} {T : PTerm S} (h : Θ' ⊢ T : !s):
   ∀ {F G : PCtx S} (_ : isMor Γ Δ F) (_ : isMor Δ Θ G) (_ : isTrunc k Θ' Θ),
   simulSubst T k (pcomp F G) = simulSubst (simulSubst T k G) k F
 | F, [], h₁, h₂, h₃ => by
@@ -836,7 +1125,7 @@ lemma testeq {Γ Δ Θ : PCtx S} {T : PTerm S} (h : Θ' ⊢ T : !s):
   simp
 | f :: F, g :: G, h₁, isMor.cons h₂ h₃ h₄, h₅ => by
   simp
-  rw [testeq h h₁ h₂ (isTrunc.pred h₅)]
+  rw [simulSubst_pcomp h h₁ h₂ (isTrunc.pred h₅)]
   simp
   have : k + 1 = 0 + k + 1 := by simp
   rw [this, ← subst_subst 0 k]
@@ -861,7 +1150,7 @@ def pcomp_isMor {Γ : PCtx S} : ∀ {Δ Θ F G : PCtx S} (_ : Γ ⊢ ⬝) (_ : �
   simpa [simulSubst_sort] using simulSubst_typing (append_typing hΓ h₃) (isMor'_isMor h₁)
   apply simulSubst_typing (append_typing hΓ h₄) (isMor'_isMor h₁)
   convert isSubst.zero using 2
-  apply testeq (exists_of_cons' hΘ).snd h₁ h₂ (isTrunc.zero _)
+  apply simulSubst_pcomp (exists_of_cons' hΘ).snd h₁ h₂ (isTrunc.zero _)
 
 end pcomp
 
@@ -875,10 +1164,21 @@ def idN : ℕ → ℕ →  PCtx S
 
 def id₀ (n : ℕ) (Γ : PCtx S) : PCtx S := idN n Γ.length
 
+def id (Γ : PCtx S) : PCtx S := id₀ 0 Γ
+
 @[simp]
 lemma idN_length {n} : ∀ {k}, (idN n k : PCtx S).length = k
 | 0 => rfl
 | k + 1 => by simp [idN_length]
+
+lemma idN_lift {n i c: ℕ} (h : c ≤ n) : ∀ {k}, ((idN n k : PCtx S) ↑↑ i # c) = idN (n + i) k
+| 0 => rfl
+| k + 1 => by
+    simp [PCtx.lift, if_neg h.not_lt]
+    congr
+    have : n + i + 1 = n + 1 + i := by rw [Nat.add_assoc, Nat.add_comm i, ← Nat.add_assoc]
+    rw [this]
+    apply idN_lift (h.trans (Nat.le_succ _))
 
 lemma idN_append_idN : ∀ (n k m : ℕ),
   List.append (idN n k : PCtx S) (idN (n + k) m) = idN n (k + m)
@@ -888,30 +1188,63 @@ lemma idN_append_idN : ∀ (n k m : ℕ),
   rw [Nat.add_comm k 1, ← Nat.add_assoc]
   apply idN_append_idN
 
-lemma simulSubst_var_idN_of_lt {n m l : ℕ} (hl : n < l) : ∀ {s : ℕ} ,
-    simulSubst (#n : PTerm S) l (idN m s) = (#n)
-| 0 => rfl
-| s + 1 => by
-  simp; rw [simulSubst_var_idN_of_lt (hl.trans (Nat.lt_succ_self _))]
+lemma simulSubst_var_of_lt {n l : ℕ} (hl : n < l) : ∀ (F : PCtx S) ,
+    simulSubst (#n : PTerm S) l F = (#n)
+| [] => rfl
+| f :: F => by
+  simp; rw [simulSubst_var_of_lt (hl.trans (Nat.lt_succ_self _))]
   simp [hl]
 
-lemma simulSubst_var_idN_of_length_add_le {n m l : ℕ} : ∀ {s : ℕ} (_ : s + l ≤ n),
-    simulSubst (#n : PTerm S) l (idN m s)  = (#n - s)
-| 0, h => by simp
-| s + 1, h => by
+lemma simulSubst_var_of_length_add_le {n : ℕ} : ∀ {F : PCtx S} (_ : F.length + l ≤ n),
+    simulSubst (#n) l F = (#n - F.length)
+| [], h => by simp
+| f :: F, h => by
   simp
-  rw [simulSubst_var_idN_of_length_add_le (by simpa only [Nat.add_comm l, ← Nat.add_assoc])]
-  have : l < n - s := by
+  rw [simulSubst_var_of_length_add_le (by simpa only [Nat.add_comm l, ← Nat.add_assoc])]
+  have : l < n - F.length := by
     rw [Nat.lt_sub_iff_add_lt, ← Nat.succ_le_iff]
     convert h using 1
     simp [Nat.add_comm l, Nat.add_assoc]
   simp [if_neg (not_lt_of_lt this), if_neg this.ne.symm, Nat.sub_sub]
 
+lemma simulSubst_var_idN_of_length_add_le {n m l s : ℕ} (h : s + l ≤ n) :
+    simulSubst (#n : PTerm S) l (idN m s)  = (#n - s) := by
+  convert simulSubst_var_of_length_add_le (F := idN m s) _
+  simp; simpa using h
+
+lemma simulSubst_lift_of_length_add_le {F : PCtx S} :
+  ∀ (f : PTerm S), simulSubst (f ↑ F.length # l) l F = f
+| .var i => by
+  rcases lt_or_le i l with hl | hl
+  . simp [hl]
+    rw [simulSubst_var_of_lt hl]
+  . rcases hl.lt_or_eq with h | h
+    . simp [if_neg h.not_lt]
+      rw [simulSubst_var_of_length_add_le (by simpa [Nat.add_comm])]
+      simp only [Nat.add_sub_cancel]
+    . simp [h]
+      rw [simulSubst_var_of_length_add_le (by simp [Nat.add_comm])]
+      simp only [Nat.add_sub_cancel]
+| .sort _ => by simp [simulSubst_sort]
+| .pi _ _ => by
+  simp [simulSubst_pi, simulSubst_lift_of_length_add_le]
+| .abs _ _ => by
+  simp [simulSubst_abs, simulSubst_lift_of_length_add_le]
+| .app _ _ => by
+  simp [simulSubst_app, simulSubst_lift_of_length_add_le]
+
+lemma simulSubst_var_of_isTrunc {f : PTerm S} {F G : PCtx S} (h : isTrunc k F (f :: G)) :
+    simulSubst (#k) 0 F = f := by
+  rw [← h.heads_append, simulSubst_append]; simp
+  rw [simulSubst_var_of_lt (by simp)]; simp
+  simp only [← h.heads_length]
+  apply simulSubst_lift_of_length_add_le
+
 -- can be strengthened???? `n ≤ s`
 lemma simulSubst_var_idN_of_lt_length {n k l : ℕ} {s : ℕ} (hn : n < s) :
     simulSubst (#n : PTerm S) l (idN k s) = (#n) ↑ k # l := by
   rcases lt_or_le n l with hl | hl
-  . simp [hl, simulSubst_var_idN_of_lt hl]
+  . simp [hl, simulSubst_var_of_lt hl _]
   . obtain ⟨a, ha⟩ := Nat.exists_eq_add_of_le hl
     have aux₁ : (idN k s : PCtx S) = List.append (idN k a) (idN (k + a) (s - a)) := by
       convert (idN_append_idN k a (s - a)).symm
@@ -927,7 +1260,7 @@ lemma simulSubst_var_idN_of_lt_length {n k l : ℕ} {s : ℕ} (hn : n < s) :
     rw [aux₁, aux₂]
     erw [simulSubst_append] -- no!!
     simp [if_neg (not_lt_of_le hl)]
-    rw [simulSubst_var_idN_of_lt (by simp only [ha, Nat.lt_add_one])]
+    rw [simulSubst_var_of_lt (by simp only [ha, Nat.lt_add_one]) _]
     simp [ha]
     rw [simulSubst_var_idN_of_length_add_le
       (by rw [← Nat.add_assoc, Nat.add_assoc k, Nat.add_comm k,
@@ -995,6 +1328,11 @@ def aux₁wf (h : A :: Γ ⊢ ⬝) : (A ↑ 1 # Γ.length) = A := by
   cases h
   apply lift_inv_of_typing (by assumption)
 
+def simulSubst_id_cons (h : A :: Γ ⊢ ⬝) :
+    simulSubst A 0 (id Γ) = A := by
+  conv_rhs => rw [← lift_zero (M := A) (c := 0)]
+  apply isMorAuxLift (aux₁wf h)
+
 def wf_of_isTrunc {k} {Γ Δ : PCtx S} : ∀ (_ : isTrunc k Γ Δ) (_ : Γ ⊢ ⬝),
     Δ ⊢ ⬝
 | .zero _, h => h
@@ -1002,7 +1340,6 @@ def wf_of_isTrunc {k} {Γ Δ : PCtx S} : ∀ (_ : isTrunc k Γ Δ) (_ : Γ ⊢ �
   apply wf_of_isTrunc (by assumption)
   cases h
   apply wf_of_typing (by assumption)
-
 
 def isMorAux {k} {Γ Δ : PCtx S} {A} (h₀ : isTrunc k Γ (A :: Δ)) (h₁ : Γ ⊢ ⬝) :
     Γ ⊢ #k : simulSubst A 0 (id₀ (k + 1) Δ) := by
@@ -1016,8 +1353,203 @@ def id_isMor : ∀ {Γ Δ : PCtx S} (_ : isTrunc k Γ Δ) (_ : Γ ⊢ ⬝), isMo
 | Γ, A :: Δ, h, h' => by
     apply isMor.cons
     apply id_isMor (isTrunc.pred h) h'
-    simpa [simulSubst_sort] using simulSubst_typing (append_typing h' (exists_of_cons' (wf_of_isTrunc h h')).snd)
+    simpa [simulSubst_sort] using simulSubst_typing
+      (append_typing h' (exists_of_cons' (wf_of_isTrunc h h')).snd)
       (isMor'_isMor (id_isMor (isTrunc.pred h) h'))
     apply isMorAux h h'
 
+def id_isMor_tail : ∀ {Γ : PCtx S} (_ : Γ ⊢ ⬝), isMor Γ Γ.tail (id₀ 1 Γ.tail)
+| [], _ => isMor.nil
+| A :: Γ, h => by apply id_isMor (isTrunc.succ _ (isTrunc.zero _)) h
+
 end id
+
+section
+-- weakening of isMor
+
+#check weakening_wf
+
+#check subst_lift
+
+lemma simulSubst_lift {A : PTerm S} {k : ℕ}  :
+  ∀ {F : PCtx S} (_ : (A ↑ 1 # k + F.length) = A),
+    ((simulSubst A k F) ↑ 1 # k) = simulSubst A k (F ↑↑ 1 # 0)
+| [], h => by simpa
+| f :: F, h => by
+  simp
+  conv_lhs =>
+    congr
+    . skip
+    . rw [← Nat.add_zero k]
+    . skip
+  rw [subst_lift]
+  congr
+  simp
+  apply simulSubst_lift
+  convert h using 2
+  simp only [length_cons]
+  rw [Nat.add_comm F.length, Nat.add_assoc]
+
+/-
+def isMor.weakening {Γ Θ : PCtx S} {n : ℕ} (h₁ : Γ ⊢ ⬝) (h₂ : Θ ⊢ A : !s) :
+  ∀ {Δ F : PCtx S} (_ : isInsert Θ A n Γ Γ') (_ : isMor Γ Δ F), isMor Γ' Δ (F ↑↑ 1 # n)
+| _, _, _, .nil => nil
+| D :: Δ, f :: F, h₃, .cons h₄ h₅ h₆ => by
+  let hΓ' := weakening_wf h₁ h₃ h₂
+  apply isMor.cons (h₄.weakening h₁ h₂ h₃)
+  #check simulSubst_typing _ (isMor'_isMor (h₄.weakening h₁ h₂ h₃))
+
+  #check weakening_typing h₅ h₃ h₂
+-/
+
+-- can be generalized to the previous one; but needs more specific lift lemmas...
+def isMor.weakening_cons {Γ : PCtx S} (h : (A :: Γ) ⊢ ⬝) :
+  ∀ {Δ F : PCtx S} (_ : Δ ⊢ ⬝) (_ : isMor Γ Δ F), isMor (A :: Γ) Δ (F ↑↑ 1)
+| _, _, _, .nil => nil
+| D :: Δ, f :: F, h₀, .cons h₁ h₂ h₃ => by
+  have : ((simulSubst D 0 F) ↑ 1) = simulSubst D 0 (F ↑↑ 1) := by
+    apply simulSubst_lift
+    simp [← h₁.length_eq]
+    apply lift_inv_of_typing (exists_of_cons' h₀).snd
+  apply isMor.cons (h₁.weakening_cons h (wf_of_cons h₀))
+  rw [← this]; exact weakening_typing h₂ isInsert.zero (exists_of_cons' h).snd
+  rw [← this]; exact weakening_typing h₃ isInsert.zero (exists_of_cons' h).snd
+
+end
+
+section
+
+def pcomp_id₀ : ∀ {F G : PCtx S} (_ : isTrunc k F G), pcomp F (id₀ k G) = G
+| F, [], h => rfl
+| F, g :: G, h => by
+  simp [pcomp]
+  congr
+  apply simulSubst_var_of_isTrunc h
+  apply pcomp_id₀ h.pred
+
+def pcomp_id {Γ Δ F : PCtx S} (h : isMor Γ Δ F) : pcomp F (id Δ) = F := by
+  convert pcomp_id₀ (isTrunc.zero _) using 2
+  simp [id₀, id, h.length_eq]
+
+end
+
+section
+
+-- typing correct
+lemma typing_correct {Γ : PCtx S} {a A: PTerm S} : ∀ (_ : Γ ⊢ a : A),
+    (∃ s : S.sort, A = (!s)) ∨ (∃ s, Nonempty (Γ ⊢ A : !s)) := sorry
+
+def ctx_beta_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢ ⬝) (h₃ : Γ →β Γ') :
+    Γ' ⊢ a : A := sorry
+
+def ctx_beta_exp_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢ ⬝) (h₃ : Γ' →β Γ) :
+    Γ' ⊢ a : A := sorry
+
+def term_betar_typing : ∀ {Γ : PCtx S} {t s M} (_: Γ ⊢ t : M) (_ : t ↠β s), Γ ⊢ s : M := sorry
+
+def ctx_beta_wf {Γ Γ' : PCtx S} (h₁ : Γ ⊢ ⬝) (h₂ : Γ' →β Γ) :
+    Γ' ⊢ ⬝ := sorry
+
+def ctx_betar_wf {Γ Γ' : PCtx S} (h₁ : Γ ⊢ ⬝) (h₂ : Γ' ↠β Γ) :
+    Γ' ⊢ ⬝ := sorry
+
+def ctx_betar_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) : ∀ (h₃ : Γ ↠β Γ'),
+    Γ' ⊢ a : A
+| .beta _ _ h => sorry
+| .refl _ => h₁
+| .trans _ _ _ h₃ h₄ => sorry
+
+def ctx_betar_exp_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢ ⬝) : ∀ (h₃ : Γ' ↠β Γ),
+    Γ' ⊢ a : A
+| .beta _ _ h => sorry
+| .refl _ => h₁
+| .trans _ _ _ h₃ h₄ => sorry
+
+def betac_confl {A B : PTerm S} (h : A ≃β B) : Σ (C : PTerm S), (A ↠β C) × (B ↠β C) := sorry
+
+def ctx_betac_confl : ∀ {Γ Δ : PCtx S} (_ : Γ ≃β Δ),
+    Σ (Θ : PCtx S), (Γ ↠β Θ) × (Δ ↠β Θ)
+| [], [], h => ⟨[], ⟨PCtx.betar.refl _,  PCtx.betar.refl _⟩⟩
+| _ :: _, [], h => by simpa using h.length_eq
+| [], _ :: _, h => by simpa using h.length_eq
+| G :: Γ, D :: Δ, h =>
+  ⟨(betac_confl h.head).1 :: (ctx_betac_confl h.tail).1,
+    ⟨(betac_confl h.head).2.1.of_head_of_tail (ctx_betac_confl h.tail).2.1,
+      (betac_confl h.head).2.2.of_head_of_tail (ctx_betac_confl h.tail).2.2⟩⟩
+
+def ctx_betac_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢ ⬝) (h₃ : Γ ≃β Γ') :
+    Γ' ⊢ a : A := by
+  let hΔ₁ := (ctx_betac_confl h₃).2.1
+  let hΔ₂ := (ctx_betac_confl h₃).2.2
+  exact (ctx_betar_exp_typing (ctx_betar_typing h₁ hΔ₁) h₂ hΔ₂)
+
+def ctx_betac_wf_cons {Γ Γ' : PCtx S} (h₁ : A :: Γ ⊢ ⬝) (h₂ : Γ' ⊢ ⬝) (h₃ : Γ ≃β Γ') :
+    (A :: Γ') ⊢ ⬝ :=
+  wf.cons _ _ _ (ctx_betac_typing (exists_of_cons' h₁).snd h₂ h₃)
+
+end
+
+section
+
+-- `isMor` is sound wrt to `betac`
+
+def isMor_betac₁ {Γ Γ' : PCtx S} (h₁ : Γ' ⊢ ⬝) (h₂ : Γ ≃β Γ'):
+  ∀ {Δ F : PCtx S} (h₃ : isMor Γ Δ F), isMor Γ' Δ F
+| [], _, h => by cases h.of_nil; apply isMor.nil
+| _, [], h => by cases h.of_mor_nil; apply isMor.nil
+| D :: Δ, f :: F, .cons h₃ h₄ h₅ =>
+  isMor.cons (isMor_betac₁ h₁ h₂ h₃) (ctx_betac_typing h₄ h₁ h₂)
+    (ctx_betac_typing h₅ h₁ h₂)
+
+def isMor_betac₂ {Γ : PCtx S} (h : Γ ⊢ ⬝) :
+  ∀ {Δ Δ' F : PCtx S} (_ : Δ ≃β Δ') (_ : Δ' ⊢ ⬝) (_ : isMor Γ Δ F) ,
+    isMor Γ Δ' F
+| _, Δ', [], h₁, _, h₂ => by cases h₂; convert isMor.nil; simpa using h₁.length_eq.symm
+| [], _ :: _, _, h, _, _ => by simpa using h.length_eq
+| _ :: _, [], _, h, _, _ => by simpa using h.length_eq
+| D :: Δ, D' :: Δ', f :: F, h₁, h₂, .cons h₃ h₄ h₅ => by
+  have : Γ ⊢ simulSubst D' 0 F : !((exists_of_cons' h₂).fst) := by
+    simpa [simulSubst_sort] using simulSubst_typing (append_typing h (exists_of_cons' h₂).snd)
+      (isMor'_isMor (isMor_betac₂ h h₁.tail (wf_of_cons h₂) h₃))
+  apply isMor.cons
+  apply isMor_betac₂ h h₁.tail (wf_of_cons h₂) h₃
+  exact this
+  apply h₅.conv _ _ _ _ _ h₁.head.simulSubst this
+
+/-
+-- This is NOT TRUE!!!
+def isMor_betac {Γ : PCtx S} (h : Γ ⊢ ⬝) :
+  ∀ {Δ F G : PCtx S} (_ : Δ ⊢ ⬝) (_ : isMor Γ Δ F) (_ : F ≃β G),
+    isMor Γ Δ G
+| _, [], [], _, h₁, _ => by cases h₁; apply isMor.nil
+| _, _ :: _, [], _, _, h₂ => by simpa using h₂.length_eq
+| _, [], _ :: _, _, _, h₂ => by simpa using h₂.length_eq
+| D :: Δ, f :: F, g :: G, h₀, .cons h₁ h₂ h₃, h₄ => by
+  have : Γ ⊢ simulSubst D 0 G : !((exists_of_cons' h₀).fst) := by
+    simpa [simulSubst_sort] using simulSubst_typing (append_typing h (exists_of_cons' h₀).snd)
+      (isMor'_isMor (isMor_betac h (wf_of_cons h₀) h₁ h₄.tail))
+  apply isMor.cons
+  apply isMor_betac h (wf_of_cons h₀) h₁ h₄.tail
+  exact this
+-/
+
+def isMor_betac {Γ Γ' Δ Δ': PCtx S} (h₁ : Γ ⊢ ⬝) (h₂ : Γ' ⊢ ⬝) (h₃ : Δ' ⊢ ⬝) (h₄ : Γ ≃β Γ')
+  (h₅ : Δ ≃β Δ') (h₆ : isMor Γ Δ F) :
+    isMor Γ' Δ' F :=
+  isMor_betac₁ h₂ h₄ (isMor_betac₂ h₁ h₅ h₃ h₆)
+
+def pcomp_betac₁ : ∀ {F F' G : PCtx S} (_ : F ≃β F'), pcomp F G ≃β pcomp F' G
+| _, _, [], _ => PCtx.betac.refl _
+| _, _, _ :: _, h => betac.of_head_of_tail h.simulSubst (pcomp_betac₁ h)
+
+def pcomp_betac₂ : ∀ {F G G' : PCtx S} (_ : G ≃β G'), pcomp F G ≃β pcomp F G'
+| _, [], [], _ => PCtx.betac.refl _
+| _, _ :: _, [], h => by simpa using h.length_eq
+| _, [], _ :: _, h => by simpa using h.length_eq
+| _, _ :: _, _ :: _, h => betac.of_head_of_tail h.head.simulSubst (pcomp_betac₂ h.tail)
+
+def pcomp_betac {F F' G G' : PCtx S} (h₁ : F ≃β F') (h₂ : G ≃β G') :
+    pcomp F G ≃β pcomp F' G' :=
+  (pcomp_betac₁ h₁).trans _ _ _ (pcomp_betac₂ h₂)
+
+end
