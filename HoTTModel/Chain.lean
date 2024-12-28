@@ -1,6 +1,7 @@
 import HoTTModel.TypeStructures
 import HoTTModel.Contextual
 import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
+import HoTTModel.Lemmas.HEq
 
 open ContextualCategory CategoryTheory Limits
 
@@ -169,8 +170,7 @@ lemma one_uniq {c : U.Chains X} : gr c = 0 → c = one := by
   simp
   intro h
   ext
-  simp [eq_of_length_eq_zero h]
-  simp [heq_of_length_eq_zero h]
+  <;> simp [eq_of_length_eq_zero h, heq_of_length_eq_zero h]
 
 class isTerminal (t : C) where
   is_terminal : IsTerminal t
@@ -205,7 +205,6 @@ def proj (c : U.Chains X) : c ⟶ ft c :=
 @[simp]
 instance instChainsPreContextualCategory [isTerminal t] :
     PreContextualCategory (U.Chains t) where
-  Cat := by infer_instance
   gr := gr
   one := one
   one_gr := by aesop
@@ -220,15 +219,16 @@ end PreContextualStructure
 
 section ContextualStructure
 
-variable {t : C} [isTerminal t] {d : U.Chains t}
+open PreContextualCategory
+variable {t : C} {d : U.Chains t}
   {Y : C} {p : Y ⟶ U.down} {c : U.Chain t Y}
 
-lemma ne_nil_of_NR [h : NR d] : ne_nil d.chain := by
+lemma ne_nil_of_NR  [isTerminal t] [h : NR d] : ne_nil d.chain := by
   rw [ne_nil_iff_not_is_nil, is_nil_iff_length_eq_zero]
   exact h.nr
 
 -- maybe use cases as those below???
-def ft_hom (c : U.Chains t) [NR c] : (ft c).dom ⟶ U.down :=
+def ft_hom [isTerminal t] (c : U.Chains t) [NR c] : (ft c).dom ⟶ U.down :=
   c.chain.tailHom ne_nil_of_NR
 
 def cons (Y : C) (g : Y ⟶ U.down) (e : U.Chain t Y) : U.Chains t :=
@@ -236,12 +236,11 @@ def cons (Y : C) (g : Y ⟶ U.down) (e : U.Chain t Y) : U.Chains t :=
 
 def cons' (d : U.Chains t) (g : d.dom ⟶ U.down) := cons _ g d.chain
 
-omit [isTerminal t] in
 @[simp]
 lemma ft_cons' {g : d.dom ⟶ U.down} : (d.cons' g).ft = d := by
   simp [cons', cons, tailObj, tail]
 
-instance : NR (cons Y p c) where
+instance [isTerminal t] : NR (cons Y p c) where
   nr := by simp [gr, length]
 
 def pb_cons (f : d ⟶ ft (cons Y p c)) : U.Chains t where
@@ -252,87 +251,94 @@ variable {f : d ⟶ ft (cons Y p c)}
 
 -- note `ft (cons Y p c) = c.toChains` definitionally
 
-omit [isTerminal t] in
 lemma gr_pb_cons_ne_zero : gr (pb_cons f) ≠ 0 := by simp [length]
 
-omit [isTerminal t] in
 lemma ft_pb_cons: ft (pb_cons f) = d := rfl
 
-omit [isTerminal t] in
-lemma pb_map_cons_comm (f : d ⟶ ft (cons Y p c)) :
+lemma pb_fst_cons_comm (f : d ⟶ ft (cons Y p c)) :
     U.fst (f.hom ≫ p) ≫ U.hom = (U.snd (f.hom ≫ p) ≫ f.hom) ≫ p :=
   by rw [U.comm, Category.assoc]
 
-noncomputable def pb_map_cons (f : d ⟶ ft (cons Y p c)) : pb_cons f ⟶ (cons Y p c) where
+noncomputable def pb_fst_cons (f : d ⟶ ft (cons Y p c)) : pb_cons f ⟶ (cons Y p c) where
   hom := (U.isPullback p).lift (U.fst (f.hom ≫ p)) (U.snd (f.hom ≫ p) ≫ f.hom)
-    (pb_map_cons_comm _)
+    (pb_fst_cons_comm _)
 
-omit [isTerminal t] in
-lemma pb_map_cons_fst : (pb_map_cons f).hom ≫ U.fst p = U.fst (f.hom ≫ p) :=
+lemma pb_fst_cons_comp_fst : (pb_fst_cons f).hom ≫ U.fst p = U.fst (f.hom ≫ p) :=
   (U.isPullback p).lift_fst _ _ _
 
-omit [isTerminal t] in
-lemma pb_map_cons_snd : (pb_map_cons f).hom ≫ U.snd p = U.snd (f.hom ≫ p) ≫ f.hom :=
+lemma pb_fst_cons_comp_snd : (pb_fst_cons f).hom ≫ U.snd p = U.snd (f.hom ≫ p) ≫ f.hom :=
   (U.isPullback p).lift_snd _ _ _
 
-omit [isTerminal t] in
 lemma comm_cons :
-  (pb_map_cons f) ≫ proj (cons Y p c) = ((proj <| pb_cons f) ≫ eqToHom (ft_pb_cons (f := f))) ≫ f := by
+  (pb_fst_cons f) ≫ proj (cons Y p c) =
+    ((proj <| pb_cons f) ≫ eqToHom (ft_pb_cons (f := f))) ≫ f := by
   ext; simp
   apply PullbackCone.IsLimit.lift_snd _ _ _ _
 
-omit [isTerminal t] in
 lemma pullback_id_obj_cons : pb_cons (𝟙 (ft (cons Y p c))) = cons Y p c := by
   ext
   . simp [pb_cons]; rfl
   . simp [pb_cons, cons, tail, tailObj]; rw [Category.id_comp]
 
-lemma _root_.CategoryTheory.eqToHom_comp_iff_heq {C : Type u₁} [CategoryTheory.Category.{v₁, u₁} C]
-  {W : C} {X : C} {Y : C} (f : W ⟶ X) (g : Y ⟶ X) (h : W = Y) :
-    eqToHom h ≫ g = f ↔ HEq g f := by
-  cases h
-  simp
-
-omit [isTerminal t] in
-lemma pb_map_cons_id_map :
-    pb_map_cons (𝟙 (ft (cons Y p c))) = eqToHom pullback_id_obj_cons := by
+lemma pb_fst_cons_id_map :
+    pb_fst_cons (𝟙 (ft (cons Y p c))) = eqToHom pullback_id_obj_cons := by
   symm; ext
-  simp [pb_map_cons, cons, tailObj]
+  simp [pb_fst_cons, cons, tailObj]
   apply (U.isPullback p).hom_ext
   all_goals simp [eqToHom_comp_iff_heq]; congr; simp only [Category.id_comp]
 
-omit [isTerminal t] in
 lemma pullback_id_map_cons :
-    eqToHom pullback_id_obj_cons.symm ≫ pb_map_cons (𝟙 (ft (cons Y p c))) = 𝟙 (cons Y p c) := by
-  rw [pb_map_cons_id_map]; simp
+    HEq (pb_fst_cons (𝟙 (ft (cons Y p c)))) (𝟙 (cons Y p c)) := by
+  apply heq_of_eqToHom_comp_eq pullback_id_obj_cons.symm
+  rw [pb_fst_cons_id_map]; simp
 
-omit [isTerminal t] in
 lemma pullback_comp_obj_cons {g : e ⟶ d} :
     pb_cons (g ≫ f) = pb_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) := by
   simp [pb_cons]
   congr 1; simp only [Category.assoc, Category.comp_id]
-
-omit [isTerminal t] in
+/-
 lemma pullback_comp_map_cons {g : e ⟶ d} :
-    pb_map_cons (g ≫ f) =
+    pb_fst_cons (g ≫ f) =
       eqToHom (pullback_comp_obj_cons (f := f) (g := g)) ≫
-        pb_map_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) ≫ pb_map_cons f := by
+        pb_fst_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) ≫ pb_fst_cons f := by
   ext
   apply (U.isPullback p).hom_ext
   . simp
-    rw [pb_map_cons_fst, pb_map_cons_fst, pb_map_cons_fst, ← Category.comp_id (eqToHom _ ≫ _),
-        ← eqToHom_refl U.up (Eq.refl U.up), Category.assoc, conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    rw [pb_fst_cons_comp_fst, pb_fst_cons_comp_fst, pb_fst_cons_comp_fst,
+        ← Category.comp_id (eqToHom _ ≫ _), ← eqToHom_refl U.up (Eq.refl U.up),
+        Category.assoc, conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
     congr 1; simp
   . simp
-    rw [pb_map_cons_snd, pb_map_cons_snd, ← Category.assoc _ _ f.hom, pb_map_cons_snd,
-        ← Category.comp_id (_ ≫ f.hom), ← eqToHom_refl (dom _) (Eq.refl _),
-        conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    rw [pb_fst_cons_comp_snd, pb_fst_cons_comp_snd, ← Category.assoc _ _ f.hom,
+        pb_fst_cons_comp_snd, ← Category.comp_id (_ ≫ f.hom),
+        ← eqToHom_refl (dom _) (Eq.refl _), conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    simp
+    congr 1
+    . simp only [pb_cons, Category.assoc, Category.comp_id]
+    . congr 1; simp only [Category.assoc, Category.comp_id]
+-/
+
+lemma pullback_comp_map_cons {g : e ⟶ d} :
+    HEq (pb_fst_cons (g ≫ f)) (pb_fst_cons (g ≫ eqToHom (ft_pb_cons (f := f)).symm) ≫
+      pb_fst_cons f) := by
+  apply heq_of_eq_eqToHom_comp pullback_comp_obj_cons
+  ext
+  apply (U.isPullback p).hom_ext
+  . simp
+    rw [pb_fst_cons_comp_fst, pb_fst_cons_comp_fst, pb_fst_cons_comp_fst,
+        ← Category.comp_id (eqToHom _ ≫ _), ← eqToHom_refl U.up (Eq.refl U.up),
+        Category.assoc, conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
+    congr 1; simp
+  . simp
+    rw [pb_fst_cons_comp_snd, pb_fst_cons_comp_snd, ← Category.assoc _ _ f.hom,
+        pb_fst_cons_comp_snd, ← Category.comp_id (_ ≫ f.hom),
+        ← eqToHom_refl (dom _) (Eq.refl _), conj_eqToHom_iff_heq _ _ _ (Eq.refl _)]
     simp
     congr 1
     . simp only [pb_cons, Category.assoc, Category.comp_id]
     . congr 1; simp only [Category.assoc, Category.comp_id]
 
-def is_pullback_from {X Y Z W : U.Chains t} {f : X ⟶ Y} {g : X ⟶ Z} {h : Y ⟶ W} {i : Z ⟶ W}
+def isPullbackFrom {X Y Z W : U.Chains t} {f : X ⟶ Y} {g : X ⟶ Z} {h : Y ⟶ W} {i : Z ⟶ W}
   (is : IsPullback f.hom g.hom h.hom i.hom) :
     IsPullback f g h i where
   w := by ext; simp [is.w]
@@ -350,15 +356,17 @@ def is_pullback_from {X Y Z W : U.Chains t} {f : X ⟶ Y} {g : X ⟶ Z} {h : Y �
     ⟩
 
 noncomputable def is_pullback_cons:
-    IsPullback (pb_map_cons f) ((pb_cons f).proj ≫ eqToHom (ft_pb_cons (f := f)))
-      (proj (cons Y p c)) f := is_pullback_from {
-  w := by change (pb_map_cons f ≫ _).hom = ((proj _ ≫ _) ≫ _).hom; rw [comm_cons]
+    IsPullback (pb_fst_cons f) ((pb_cons f).proj ≫ eqToHom (ft_pb_cons (f := f)))
+      (proj (cons Y p c)) f := isPullbackFrom {
+  w := by change (pb_fst_cons f ≫ _).hom = ((proj _ ≫ _) ≫ _).hom; rw [comm_cons]
   isLimit' := ⟨by
     apply topSquareIsPullback _ rfl (U.isPullback p).isLimit
     convert (U.isPullback (f.hom ≫ p) ).isLimit
-    simp [PullbackCone.pasteVert, pb_map_cons]
+    simp [PullbackCone.pasteVert, pb_fst_cons]
     rfl
     ⟩}
+
+variable [isTerminal t]
 
 @[elab_as_elim]
 def cases_cons {h : (c : U.Chains t) → [NR c] → Sort w}
@@ -378,7 +386,7 @@ def pb (f : d ⟶ ft c) :
 
 noncomputable def pb_fst (f : d ⟶ ft c) :
     pb f ⟶ c :=
-  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (pb f ⟶ c)) pb_map_cons c f
+  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (pb f ⟶ c)) pb_fst_cons c f
 
 lemma gr_pb {f : d ⟶ ft c} :
     gr (pb f) ≠ 0 :=
@@ -391,19 +399,13 @@ lemma ft_pb {f : d ⟶ ft c} :
     ft (pb f) = d :=
   cases_cons (h := fun c ↦ (f : d ⟶ ft c) → (ft (pb f) = d)) (fun _ ↦ ft_pb_cons) c f
 
-/-
-lemma comm {f : d ⟶ ft c} :
-    (proj <| pb f) ≫ eqToHom (ft_pb (f := f)) ≫ f = (pb_fst f) ≫ proj c :=
-  cases_cons (h := fun c ↦ (f : d ⟶ ft c) → ((proj <| pb f) ≫
-    eqToHom (ft_pb (f := f)) ≫ f = (pb_fst f) ≫ proj c)) (fun _ ↦ comm_cons) c f-/
-
 lemma pullback_id_obj :
     pb (𝟙 (ft c)) = c :=
   cases_cons (h := fun c ↦ pb (𝟙 (ft c)) = c) (fun {Y p c} ↦ @pullback_id_obj_cons C _ U t Y p c) c
 
 lemma pullback_id_map :
-    eqToHom (pullback_id_obj (c := c)).symm ≫ pb_fst (𝟙 (ft c)) = 𝟙 c :=
-  cases_cons (h := fun c ↦ eqToHom (pullback_id_obj (c := c)).symm ≫ pb_fst (𝟙 (ft c)) = 𝟙 c)
+    HEq (pb_fst (𝟙 (ft c))) (𝟙 c) :=
+  cases_cons (h := fun c ↦ HEq (pb_fst (𝟙 (ft c))) (𝟙 c))
     (fun {Y p c} ↦ @pullback_id_map_cons C _ U t Y p c) c
 
 lemma pullback_comp_obj {c d e : U.Chains t} [NR c] {f : d ⟶ ft c} {g : e ⟶ d} :
@@ -413,11 +415,9 @@ lemma pullback_comp_obj {c d e : U.Chains t} [NR c] {f : d ⟶ ft c} {g : e ⟶ 
       (fun {Y p c f} ↦ @pullback_comp_obj_cons C _ U t d Y p c f e) c
 
 lemma pullback_comp_map {c d e : U.Chains t} [NR c] {f : d ⟶ ft c} {g : e ⟶ d} :
-    pb_fst (g ≫ f) = eqToHom (pullback_comp_obj (f := f) (g := g)) ≫
-      pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f :=
-  cases_cons (h := fun c ↦ {f : d ⟶ ft c} → {g : e ⟶ d} → pb_fst (g ≫ f) =
-    eqToHom (pullback_comp_obj (f := f) (g := g)) ≫
-      pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f)
+    HEq (pb_fst (g ≫ f)) (pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f) :=
+  cases_cons (h := fun c ↦ {f : d ⟶ ft c} → {g : e ⟶ d} →
+    HEq (pb_fst (g ≫ f)) (pb_fst (g ≫ eqToHom (ft_pb (f := f)).symm) ≫ pb_fst f))
       (fun {Y p c f} ↦ @pullback_comp_map_cons C _ U t d Y p c f e) c
 
 noncomputable def is_pullback (f : d ⟶ ft c) :
@@ -711,10 +711,14 @@ end Pi
 variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] in
 open Pi in
 def Pi_type (S : Pi.Structure U) : Pi_type (U.Chains t) where
-  form B := form S B
-  intro b := intro S b
-  elim f a := elim S f a
+  form _ B := form S B
+  intro _ _ b := intro S b
+  elim _ _ f a := elim S f a
   compt a b := compt S a b
+  form_stable := sorry
+  intro_stable := sorry
+  elim_stable := sorry
+
 /-
 section
 -- maybe it would be good to rewrite every isterminal to hasterminal
