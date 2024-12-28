@@ -8,14 +8,19 @@ namespace SSet
 
 variable {C : Type*} [Category C]
 
-variable {X Y : SSet}
-
-class KanFibration (p : X ⟶ Y) : Prop where
+class KanFibration ⦃X Y : SSet⦄ (p : X ⟶ Y) : Prop where
   lift : ∀ ⦃n : ℕ⦄ ⦃i : Fin (n+1)⦄ {f} {g} (D : CommSq f (hornInclusion n i) p g),
     Nonempty D.LiftStruct
 
+variable {X Y : SSet}
+
 def KanFibration.LiftStruct {p : X ⟶ Y} [KanFibration p] {n} {i} {f} {g}
 (D : CommSq f (hornInclusion n i) p g) : D.LiftStruct := choice (KanFibration.lift D)
+
+lemma KanFibration.mk' {p : X ⟶ Y}
+  (h : ∀ ⦃n i⦄, HasLiftingProperty (hornInclusion n i) p) :
+    KanFibration p where
+  lift _ _ _ _ _ := CommSq.HasLift.exists_lift
 
 -- this is a general statement
 namespace KanFibration
