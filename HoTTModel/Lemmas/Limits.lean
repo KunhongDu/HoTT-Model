@@ -181,6 +181,93 @@ end PullbackLeftComp
 
 end Limits
 
+section Lift_from_CommSq_to_pullback
+
+section
+variable {X Y Z W X' Y' Z' W' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y'} {snd' : X' ⟶ Z'} {f' : Y' ⟶ W'} {g' : Z' ⟶ W'}
+  (is : CommSq fst snd f g) (is' : IsPullback fst' snd' f' g')
+  (iY : Y ⟶ Y') (iZ : Z ⟶ Z') (iW : W ⟶ W')
+  (hYW : iY ≫ f' = f ≫ iW) (hZW : iZ ≫ g' = g ≫ iW)
+
+noncomputable def CommSq.liftIsPullback :
+    X ⟶ X' :=
+  is'.lift (fst ≫ iY) (snd ≫ iZ)
+    (by simp only [Category.assoc]; rw [hYW, hZW, ← Category.assoc, is.w, Category.assoc])
+
+lemma CommSq.liftIsPullback_fst :
+    CommSq.liftIsPullback is is' iY iZ iW hYW hZW ≫ fst' = fst ≫ iY :=
+  IsPullback.lift_fst _ _ _ _
+
+lemma CommSq.liftIsPullback_snd :
+    CommSq.liftIsPullback is is' iY iZ iW hYW hZW ≫ snd' = snd ≫ iZ :=
+  IsPullback.lift_snd _ _ _ _
+
+end
+
+section
+
+variable {X Y Z W X' Y' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y'} {snd' : X' ⟶ Z} {f' : Y' ⟶ W}
+  (is : CommSq fst snd f g) (is' : IsPullback fst' snd' f' g)
+  (i : Y ⟶ Y') (hi : i ≫ f' = f)
+
+-- along here indictes 'along' a mpa
+noncomputable def CommSq.liftIsPullbackAlong :
+    X ⟶ X' :=
+  CommSq.liftIsPullback is is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
+
+@[simp]
+lemma CommSq.liftIsPullbackAlong_fst :
+    liftIsPullbackAlong is is' i hi ≫ fst' = fst ≫ i :=
+  is.liftIsPullback_fst is' _ _ _ _ _
+
+@[simp]
+lemma CommSq.liftIsPullbackAlong_snd :
+    liftIsPullbackAlong is is' i hi ≫ snd' = snd := by
+  convert is.liftIsPullback_snd is' _ _ _ _ _
+  simp only [Category.comp_id]
+
+@[simp]
+noncomputable def CommSq.liftIsPullbackAlong' (i : Over.mk f ⟶ Over.mk f') :
+    Over.mk snd ⟶ Over.mk snd' :=
+  Over.homMk (liftIsPullbackAlong is is' i.left (Over.w i)) (is.liftIsPullbackAlong_snd is' _ _)
+
+end
+
+section
+variable {X Y Z W X' Z' : C}
+  {fst : X ⟶ Y} {snd : X ⟶ Z} {f : Y ⟶ W} {g : Z ⟶ W}
+  {fst' : X' ⟶ Y} {snd' : X' ⟶ Z'} {g' : Z' ⟶ W}
+  (is : CommSq fst snd f g) (is' : IsPullback fst' snd' f g')
+  (i : Z ⟶ Z') (hi : i ≫ g' = g)
+
+noncomputable def CommSq.liftIsPullbackOf :
+    X ⟶ X' :=
+  CommSq.liftIsPullback is is' (𝟙 _) i (𝟙 _) (by simp) (by simp [hi])
+
+@[simp]
+lemma CommSq.liftIsPullbackOf_fst :
+    liftIsPullbackOf is is' i hi ≫ fst' = fst := by
+  convert is.liftIsPullback_fst is' _ _ _ _ _
+  simp only [Category.comp_id]
+
+@[simp]
+lemma CommSq.liftIsPullbackOf_snd :
+    liftIsPullbackOf is is' i hi ≫ snd' = snd ≫ i:=
+  is.liftIsPullback_snd is' _ _ _ _ _
+
+@[simp]
+noncomputable def CommSq.liftIsPullbackOf' (i : Over.mk g ⟶ Over.mk g') :
+    Over.mk fst ⟶ Over.mk fst' :=
+  Over.homMk (liftIsPullbackOf is is' i.left (Over.w i)) (is.liftIsPullbackOf_fst is' _ _)
+
+end
+
+end Lift_from_CommSq_to_pullback
+
 section Lift_between_two_pullbacks
 
 /-
@@ -201,9 +288,7 @@ variable {X Y Z W X' Y' Z' W' : C}
   (hYW : iY ≫ f' = f ≫ iW) (hZW : iZ ≫ g' = g ≫ iW)
 
 noncomputable def IsPullback.liftIsPullback :
-    X ⟶ X' :=
-  is'.lift (fst ≫ iY) (snd ≫ iZ)
-    (by simp only [Category.assoc]; rw [hYW, hZW, ← Category.assoc, is.w, Category.assoc])
+    X ⟶ X' := is.toCommSq.liftIsPullback is' iY iZ iW hYW hZW
 
 lemma IsPullback.liftIsPullback_fst :
     IsPullback.liftIsPullback is is' iY iZ iW hYW hZW ≫ fst' = fst ≫ iY :=
@@ -224,7 +309,7 @@ variable {X Y Z W X' Y' : C}
 -- along here indictes 'along' a mpa
 noncomputable def IsPullback.liftIsPullbackAlong :
     X ⟶ X' :=
-  IsPullback.liftIsPullback is is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
+  is.liftIsPullback is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
 
 @[simp]
 lemma IsPullback.liftIsPullbackAlong_fst :
@@ -251,7 +336,7 @@ noncomputable def IsPullback.sectionSnd (i : W ⟶ Y) (hi : i ≫ f = 𝟙 _) :
 
 @[simp]
 lemma IsPullback.sectionSnd_is_section :
-    IsPullback.sectionSnd is i hi ≫ snd = 𝟙 _ := by
+    is.sectionSnd i hi ≫ snd = 𝟙 _ := by
   apply IsPullback.liftIsPullbackAlong_snd
 
 @[simp]
