@@ -28,10 +28,15 @@ def overPshIsPshElementsOp' {P : Cᵒᵖ ⥤ Type max v w} :
   (YonedaULift.overEquivPresheafCostructuredArrow P).trans
     (congrLeft (costructuredArrowYonedaEquivalenceULift P).op).symm
 
+end CategoryOfElements
+
+open CategoryOfElements
+
 instance : OverCartesianClosed (Cᵒᵖ ⥤ Type max v w) where
   over _ := cartesianClosedOfEquiv overPshIsPshElementsOp'.symm
 
-instance : LocallyCartesianClosed (Cᵒᵖ ⥤ Type max v w) := inferInstance
+instance instLocallyCartesianClosedPresheaves :
+  LocallyCartesianClosed (Cᵒᵖ ⥤ Type max v w) := inferInstance
 
 instance : LocallyCartesianClosed SSet.{u} := by
   dsimp [SSet, SimplicialObject]
@@ -39,7 +44,5 @@ instance : LocallyCartesianClosed SSet.{u} := by
   -- note that `SimplexCategory` has `Category.{0,0}`
   -- and `Type max 0 u = Type u` definitionally
 
-
-end CategoryOfElements
 
 end CategoryTheory
