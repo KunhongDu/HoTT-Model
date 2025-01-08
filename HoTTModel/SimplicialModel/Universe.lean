@@ -1165,7 +1165,7 @@ lemma Corepresentable.universal (f : X ⟶ U α) :
 
 end Υ
 
-lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
+lemma UniSmallWOKan.universal₀ (g : SmallWO α X) (hg : g.Kan) :
     Υ_obj.mk g hg = Υ_obj.mk ((UniSmallWOKan α).pullback (Υ.toHom (Υ_obj.mk g hg)))
         KanFibration.pullback_snd := by
   convert Υ.Corepresentable.universal (Υ.toHom (Υ_obj.mk g hg))
@@ -1174,11 +1174,11 @@ lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
     simp only [Υ_obj.mk, Υ, Υ_map, op_obj, op_map, Subtype.map_coe,  ← Ω_obj_mk,
       Ω_map.mk_eq]
 
-lemma UniSmallWOKan.universal' (g : SmallWO α X) (hg : g.Kan) :
+lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
     g ≈  (UniSmallWOKan α).pullback (Υ.toHom (Υ_obj.mk g hg)):= by
   rw [← Quotient.eq_iff_equiv]
   apply_fun equivShrink (Ω_obj₀ α _)
-  exact congrArg Subtype.val (universal g hg)
+  exact congrArg Subtype.val (universal₀ g hg)
 
 end
 end SSet

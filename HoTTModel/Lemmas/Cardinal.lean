@@ -69,6 +69,16 @@ lemma pow_lt_of_isStrongLimit (h : α.IsStrongLimit) {β γ : Cardinal.{u}} (h�
   apply lt_of_le_of_lt _ (h.2 _ h₁)
   refine (power_le_power_left h''' h'.le).trans (by rw [power_self_eq h''])
 
+lemma prod_lt_bound_pow_of_lt_of_lt {ι : Type u} (f : ι → Cardinal.{u}) (α : Cardinal.{u})
+  (h₁ : α.IsStrongLimit) (h₂ : α.IsRegular) (h₃ : ∀ i, f i < α) (h₄ : #ι < α):
+    prod f < α := by
+  apply lt_of_le_of_lt
+  apply prod_le_iSup_pow_of_le _ α (fun a ↦ (h₃ a).le)
+  simp [lift_id]
+  apply pow_lt_of_isStrongLimit h₁ _ h₄
+  apply iSup_lt_lift_of_isRegular h₂ _ h₃
+  simpa
+
 lemma lt_uncountable_of_fintype [α.Uncountable] {A : Type u} [Fintype A] :
     Cardinal.mk A < α := by
   apply lt_of_lt_of_le _ Cardinal.Infinite.le

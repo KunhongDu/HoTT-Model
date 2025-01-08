@@ -1,5 +1,5 @@
 import HoTTModel.SimplicialModel.Universe
-import HoTTModel.SimplicialModel.SmallFibre
+import HoTTModel.SimplicialModel.Fibre
 import HoTTModel.LocallyCartesianClosed.Presheaf
 import HoTTModel.Chain
 
@@ -26,6 +26,8 @@ def Uni : Universe SSet.{u} where
   hom := (UniWOKan α).hom
   isPullback f := IsPullback.of_hasPullback (UniWOKan α).hom f
 
+def Model : Type (u + 1) := Chains (Uni α) Δ[0]
+
 -- this follows from a general result
 instance : KanFibration (((Π(Pi.Gen₁.snd (Uni α))).obj (Pi.Gen₂.snd' (Uni α))).hom) := sorry
 
@@ -46,7 +48,7 @@ def Pi.Υ_obj : (Υ α).obj (op (Pi.obj (Uni α))) := by
 
 def Pi : Pi.Structure (Uni α) where
   hom := Υ.toHom (Pi.Υ_obj α)
-  iso := (UniSmallWOKan.universal' (Pi.SmallWO α) (Pi.SmallWO_Kan _)).some.toOverIso
+  iso := (UniSmallWOKan.universal (Pi.SmallWO α) (Pi.SmallWO_Kan _)).some.toOverIso
 
 instance : Chains.isTerminal Δ[0] where
   is_terminal := Δ0_is_terminal
