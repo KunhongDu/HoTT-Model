@@ -219,12 +219,12 @@ noncomputable def CommSq.liftIsPullbackAlong :
     X ⟶ X' :=
   CommSq.liftIsPullback is is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
 
-@[simp]
+@[simp, reassoc]
 lemma CommSq.liftIsPullbackAlong_fst :
     liftIsPullbackAlong is is' i hi ≫ fst' = fst ≫ i :=
   is.liftIsPullback_fst is' _ _ _ _ _
 
-@[simp]
+@[simp, reassoc]
 lemma CommSq.liftIsPullbackAlong_snd :
     liftIsPullbackAlong is is' i hi ≫ snd' = snd := by
   convert is.liftIsPullback_snd is' _ _ _ _ _
@@ -248,13 +248,13 @@ noncomputable def CommSq.liftIsPullbackOf :
     X ⟶ X' :=
   CommSq.liftIsPullback is is' (𝟙 _) i (𝟙 _) (by simp) (by simp [hi])
 
-@[simp]
+@[simp, reassoc]
 lemma CommSq.liftIsPullbackOf_fst :
     liftIsPullbackOf is is' i hi ≫ fst' = fst := by
   convert is.liftIsPullback_fst is' _ _ _ _ _
   simp only [Category.comp_id]
 
-@[simp]
+@[simp, reassoc]
 lemma CommSq.liftIsPullbackOf_snd :
     liftIsPullbackOf is is' i hi ≫ snd' = snd ≫ i:=
   is.liftIsPullback_snd is' _ _ _ _ _
@@ -311,12 +311,12 @@ noncomputable def IsPullback.liftIsPullbackAlong :
     X ⟶ X' :=
   is.liftIsPullback is' i (𝟙 _) (𝟙 _) (by simp [hi]) (by simp)
 
-@[simp]
+@[simp, reassoc]
 lemma IsPullback.liftIsPullbackAlong_fst :
     liftIsPullbackAlong is is' i hi ≫ fst' = fst ≫ i :=
   is.liftIsPullback_fst is' _ _ _ _ _
 
-@[simp]
+@[simp, reassoc]
 lemma IsPullback.liftIsPullbackAlong_snd :
     liftIsPullbackAlong is is' i hi ≫ snd' = snd := by
   convert is.liftIsPullback_snd is' _ _ _ _ _
@@ -334,7 +334,7 @@ noncomputable def IsPullback.sectionSnd (i : W ⟶ Y) (hi : i ≫ f = 𝟙 _) :
     Z ⟶ X :=
   IsPullback.liftIsPullbackAlong (IsPullback.of_id_snd (f := g)) is i (by simp [hi])
 
-@[simp]
+@[simp, reassoc]
 lemma IsPullback.sectionSnd_is_section :
     is.sectionSnd i hi ≫ snd = 𝟙 _ := by
   apply IsPullback.liftIsPullbackAlong_snd
@@ -343,6 +343,11 @@ lemma IsPullback.sectionSnd_is_section :
 noncomputable def IsPullback.sectionSnd' (i : Over.mk (𝟙 W) ⟶ Over.mk f) :
     Over.mk (𝟙 Z) ⟶ Over.mk snd :=
   Over.homMk (is.sectionSnd i.left (Over.w i)) is.sectionSnd_is_section
+
+@[simp, reassoc]
+lemma IsPullback.sectionSnd'_left_fst (i : Over.mk (𝟙 W) ⟶ Over.mk f) :
+    (is.sectionSnd' i).left ≫ fst = g ≫ i.left := by
+  simp only [Over.mk_left, sectionSnd', sectionSnd, Over.homMk_left, liftIsPullbackAlong_fst]
 
 end
 section
