@@ -6,14 +6,13 @@ This repository aims to formalize [the simplcial model of HoTT](https://arxiv.or
 
 ### Contextual Category
 - [x] Contextual catgory (1.2.1)
-- Logical sturctures on a contextual catgory (Appendix B) (All done except stability for some structures)
+- [x] Logical sturctures on a contextual catgory (Appendix B)
 
 ### Universe
 - [x] Universe in a category, i.e., a morphism with chosen pullbacks (1.3)
 - [x] Universe induces a contextual category (1.3.2, 1.3.3)
 - Logical sturctures on a universe in a locally closed cartesian category (1.4)
 - If the universe has a certain logical structures, so does the contextual category it induces (1.4.15)
-
 - [x] $\Pi$-type has been completely formalized for the last two points.
 
 ### The simplcial model
@@ -41,5 +40,5 @@ This repository aims to formalize [the simplcial model of HoTT](https://arxiv.or
 ## On the syntactic side
 - Aim to formalize a type theory. Since formalizing the whole Martin-Löf type theory would be too much work, only
 	trying [pure type system](https://ncatlab.org/nlab/show/pure+type+system) now
-- Aim to define a contextual category of well-fromed contexts of PTS.
-- Aim to define an interpretation function to connect the syntactics and semantics.
+- Aim to define a contextual category of well-fromed contexts of PTS. (Almost done)
+- Aim to define an interpretation function to connect the syntactics and semantics. (Halfway done)
