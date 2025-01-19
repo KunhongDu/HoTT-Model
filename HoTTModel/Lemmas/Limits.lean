@@ -454,3 +454,43 @@ def isColimit_eq {j j' : J} {x : F.obj j} {x' : F.obj j'} (w : c.ι.app j x = c.
   simpa using congr_arg (isColimitEquivQuot c hc) w
 
 end CategoryTheory.Limits.Types
+
+section
+
+-- cube
+
+namespace CategoryTheory.IsPullback
+
+open Limits
+
+variable {α : Type u} [Category.{v} α] {A B C D A' B' C' D' : α}
+  {f : A ⟶ B} {g : A ⟶ C} {h : B ⟶ D} {i : C ⟶ D}
+  {j : A' ⟶ A} {k : B' ⟶ B} {l : C' ⟶ C} {m : D' ⟶ D}
+  {f' : A' ⟶ B'} {g' : A' ⟶ C'} {h' : B' ⟶ D'} {i' : C' ⟶ D'}
+  (is₁ : IsPullback f g h i) (is₂ : IsPullback j g' g l)
+  (is₃ : IsPullback k h' h m)
+  (w : j ≫ f = f' ≫ k) (w' : l ≫ i = i' ≫ m) (w'' : f' ≫ h' = g' ≫ i')
+  (a : Over.mk (𝟙 D) ⟶ Over.mk h)
+
+def of_right_of_pasteHoriz  :
+    IsPullback f' g' h' i' := by
+  apply IsPullback.of_right _ _ is₃
+  convert is₂.paste_horiz is₁ using 1
+  exact w.symm
+  exact w'.symm
+  exact w''
+
+lemma paste_horiz_sectionSnd' :
+    (is₂.paste_horiz is₁).sectionSnd' a = is₂.sectionSnd' (is₁.sectionSnd' a) := by
+  ext; apply (is₂.paste_horiz is₁).hom_ext
+  . simp; rw [liftIsPullbackAlong_fst_assoc, liftIsPullbackAlong_fst]
+  . simp
+
+lemma sectionSnd'_sectionSnd' (w : j ≫ f = f' ≫ k) (w' : l ≫ i = i' ≫ m):
+    is₂.sectionSnd' (is₁.sectionSnd' a) =
+      (is₁.of_right_of_pasteHoriz is₂ is₃ w w' w'').sectionSnd' (is₃.sectionSnd' a) := by
+  rw [← paste_horiz_sectionSnd', ← paste_horiz_sectionSnd']; congr
+
+end CategoryTheory.IsPullback
+
+end

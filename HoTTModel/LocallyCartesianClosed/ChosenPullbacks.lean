@@ -349,19 +349,18 @@ def pushforward.commSqAux :
     CommSq (liftAux is is₁ is₂ comm) q q' j where
   w := by simp
 
-lemma pushforward.adj_symm_lift_eq_lift_adj_symm (b : Over.mk p' ⟶ (Πg').obj (Over.mk f')) :
-  (IsPullback.adjEquiv is₁ _).symm
-    (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b) =
-      (pushforward.commSqAux is is₁ is₂ comm).liftIsPullbackAlong' is'
-        ((IsPullback.adjEquiv is₂ _).symm b) := by
+lemma pushforward.adj_symm_comp (b : Over.mk p' ⟶ (Πg').obj (Over.mk f')) :
+  ((IsPullback.adjEquiv is₁ _).symm
+    (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b)).left ≫ i =
+    liftAux is is₁ is₂ comm ≫ ((IsPullback.adjEquiv is₂ (Over.mk f')).symm b).left := by
   let bk := (Σk).map (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b)
-  let cj := (Σj).map ((IsPullback.adjEquiv is₁ _).symm
-    (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b))
   let b' := is₁.liftIsPullbackAlong' (IsPullback.of_hasPullback ((Πg).obj (Over.mk f)).hom g)
     (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b)
+  let d' : Over.mk (p ≫ k) ⟶ Over.mk p' := Over.homMk d comm.w
+  let cj := (Σj).map ((IsPullback.adjEquiv is₁ _).symm
+    (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b))
   let cj' := (is₁.paste_vert is.flip).liftIsPullbackAlong'
     ((IsPullback.of_hasPullback ((Πg).obj (Over.mk f)).hom g).paste_vert is.flip) bk
-  let d' : Over.mk (p ≫ k) ⟶ Over.mk p' := Over.homMk d comm.w
   let i' : Over.mk (f ≫ j) ⟶ Over.mk f' := Over.homMk i is'.w
   let counitj := (Σj).map
     ((IsPullback.adjEquiv_ofHasPullback g ((Πg).obj (Over.mk f)).hom _).symm (𝟙 _))
@@ -375,14 +374,20 @@ lemma pushforward.adj_symm_lift_eq_lift_adj_symm (b : Over.mk p' ⟶ (Πg').obj 
     erw [← Functor.map_comp, IsPullback.adjEquiv_naturality_symm_left, Category.comp_id]
     rfl
   have aux₂ : d' ≫ b = bk ≫ trans₀ is is'.toCommSq := by ext; simp [d', bk]
-  ext; fapply is'.hom_ext
-  . simp
-    change cj.left ≫ i'.left = (liftAux' is is₁ is₂ comm).left ≫ _
-    rw [← comp_left, ← comp_left, IsPullback.adjEquiv_naturality_symm_left, aux₁, aux₂,
-      Category.assoc]
-    congr
-    apply_fun (IsPullback.adjEquiv (is₁.paste_vert is.flip) (Over.mk f'))
-    rw [Equiv.apply_symm_apply, IsPullback.adjEquiv_naturality_left]; rfl
+  change cj.left ≫ i'.left = (liftAux' is is₁ is₂ comm).left ≫ _
+  rw [← comp_left, ← comp_left, IsPullback.adjEquiv_naturality_symm_left, aux₁, aux₂,
+    Category.assoc]
+  congr
+  apply_fun (IsPullback.adjEquiv (is₁.paste_vert is.flip) (Over.mk f'))
+  rw [Equiv.apply_symm_apply, IsPullback.adjEquiv_naturality_left]; rfl
+
+lemma pushforward.adj_symm_lift_eq_lift_adj_symm (b : Over.mk p' ⟶ (Πg').obj (Over.mk f')) :
+  (IsPullback.adjEquiv is₁ _).symm
+    (comm.liftIsPullbackAlong' (pushforward.isPullback is is') b) =
+      (pushforward.commSqAux is is₁ is₂ comm).liftIsPullbackAlong' is'
+        ((IsPullback.adjEquiv is₂ _).symm b) := by
+  ext; apply is'.hom_ext
+  . simp; apply pushforward.adj_symm_comp (is' := is')
   . simpa using Over.w _
 
 lemma pushforward.adj_lift_eq_lift_adj (a : Over.mk q' ⟶ Over.mk f') :
@@ -418,7 +423,7 @@ variable {A'' B'' C'' : α} {f'' : A'' ⟶ B''} {g'' : B'' ⟶ C''}
   (is' : IsPullback j' g' g'' k') (comm' : CommSq i' f' f'' j')
 
 @[reassoc]
-lemma pushforward.trans_comp' :
+lemma pushforward.trans_comp :
     pushforward.trans is comm ≫ pushforward.trans is' comm' =
       pushforward.trans (is.paste_horiz is') (comm.horiz_comp comm') := by
 
@@ -453,8 +458,7 @@ lemma pushforward.trans_comp' :
   let ev := (IsPullback.adjEquiv_ofHasPullback g ((Πg).obj (Over.mk f)).hom _).symm (𝟙 _)
   let evj' := (Σ(j ≫ j')).map ev
   let ev' := (IsPullback.adjEquiv_ofHasPullback g' ((Πg').obj (Over.mk f')).hom _).symm (𝟙 _)
-  let i_ : Over.mk (f ≫ j ≫ j') ⟶ Over.mk (f' ≫ j') := Over.homMk i
-    (by simp [comm.w_assoc])
+  let i_ : Over.mk (f ≫ j ≫ j') ⟶ Over.mk (f' ≫ j') := Over.homMk i (by simp [comm.w_assoc])
 
   have aux : (Σj').map ((is₁.liftIsPullbackAlong'
     (IsPullback.of_hasPullback ((Πg').obj (Over.mk f')).hom g') (trans₀ is comm)) ≫ ev') =

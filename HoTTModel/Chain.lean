@@ -723,6 +723,14 @@ lemma transfer_hom_left :
   apply (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom)).hom_ext
   <;> simp
 
+@[simp]
+def transferLeftIso : ((Π(Ext.hom A).hom).obj (Over.mk (Ext.hom B).hom)).left ≅
+    (Over.mk (Ext.hom (form S A B)).hom).left where
+  hom := (transfer S A B).hom.left
+  inv := (transfer S A B).inv.left
+  hom_inv_id := by rw [← Over.comp_left]; simp
+  inv_hom_id := by rw [← Over.comp_left]; simp
+
 def intro : Section (form S A B) :=
   Section.ofHom $ IsPullback.adjEquiv (IsPullback.of_id_snd (f := A.hom.hom)) (Over.mk B.hom.hom)
     (Section.toHom b) ≫ (transfer S A B).hom
@@ -742,7 +750,8 @@ def elim :
   refine Over.homMk (Hom.mk ?_) ?_
   exact (Section.toHom a).left ≫
     ((IsPullback.of_hasPullback ((ΠA.hom.hom).obj (Over.mk B.hom.hom)).hom A.hom.hom).sectionSnd'
-    (reduce S A B f) ≫ (adj A.hom.hom).counit.app (Over.mk B.hom.hom)).left
+    (reduce S A B f) ≫ ((IsPullback.adjEquiv_ofHasPullback A.hom.hom
+      ((ΠA.hom.hom).obj (Over.mk B.hom.hom)).hom _).symm (𝟙 _))).left
   ext; simp only [Over.mk_left, Over.comp_left, Over.homMk_left,
     Over.mk_hom, comp_hom, Category.assoc]
   erw [Over.w, Over.w, Over.mk_hom, Category.comp_id]
@@ -756,10 +765,8 @@ lemma compt (a : Section A) (b : Section B) :
   dsimp only [elim, Over.homMk_left]
   simp_rw [reduce_intro]
   congr
-  rw [← Adjunction.homEquiv_symm_id]
-  convert IsPullback.adjEquiv_naturality_symm_left'
-    (IsPullback.of_id_snd (f := A.hom.hom))
-    ((IsPullback.adjEquiv _ (Over.mk (Ext.hom B).hom)) (Section.toHom b)) (𝟙 _)
+  convert IsPullback.adjEquiv_naturality_symm_left _
+    (IsPullback.of_id_snd (f := A.hom.hom)) _ (𝟙 _)
   simp only [Functor.id, Category.comp_id, Equiv.symm_apply_apply]
 
 variable {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext)
@@ -901,7 +908,7 @@ lemma intro_stable_aux₀ :
         simp [Ext.fst]; rfl
     rw [← this, IsPullback.liftIsPullbackAlong_fst]
     simp
-    rw [pushforward.trans_comp'_assoc]
+    rw [pushforward.trans_comp_assoc]
     congr 2
     rw [form_stable_form₀]
     rw [form_stable_form₁]
@@ -918,6 +925,17 @@ lemma intro_stable_aux₂ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) {A : Ext Γ} (B
     (Ext.isPullbackLeft B (Ext.pullbackFst A f))).liftIsPullbackAlong_fst
       (Ext.isPullbackLeft (form S A B) f) (transfer S A B).hom.left (Over.w _) using 2
   apply intro_stable_aux₀
+
+lemma intro_stable_aux₂_inv {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) {A : Ext Γ} (B : Ext A.obj) :
+    (transfer S (Ext.pullback A f) (Ext.pullback B (Ext.pullbackFst A f))).inv.left ≫
+      pushforward.trans (Ext.isPullbackLeft A f)
+        (Ext.isPullbackLeft B (Ext.pullbackFst A f)).toCommSq =
+      eqToHom (congrArg dom intro_stable_eq) ≫ (Ext.pullbackFst (form S A B) f).hom ≫
+        (transfer S A B).inv.left := by
+  rw [← Iso.cancel_iso_hom_left (transferLeftIso _ _ _),
+      ← Iso.cancel_iso_hom_right _ _ (transferLeftIso S A B)]
+  simp; rw [← Over.comp_left_assoc, ← Over.comp_left _ _ _ (transfer S A B).inv]
+  simpa using (intro_stable_aux₂ S f B).symm
 
 lemma intro_stable_aux₃ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) {A : Ext Γ} (B : Ext A.obj) :
     (transfer S (Ext.pullback A f) (Ext.pullback B (Ext.pullbackFst A f))).hom.left ≫
@@ -945,6 +963,54 @@ lemma intro_stable {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) {A : Ext Γ} (B : Ext 
     . conv_rhs => erw [← comp_hom, Over.w _]
       simp [intro_stable_aux₃]
 
+
+@[simp]
+lemma elim_comp_hom {Γ : U.Chains t} {A : Ext Γ} {B : Ext A.obj}
+  (k : Section (form S A B)) (a : Section A) :
+    (elim S A B k a).left ≫ B.hom = a.left  :=
+  Over.w _
+
+lemma elim_stable_aux {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Ext Γ) (B : Ext A.obj)
+  (k : Section (form S A B)) :
+  (reduce S (Ext.pullback A f) (Ext.pullback B (Ext.pullbackFst A f))
+    ((Section.lift f k).ofEq (form_stable S f A B))) =
+      (pushforward.isPullback (Ext.isPullbackLeft A f)
+        (Ext.isPullbackLeft B (A.pullbackFst f))).sectionSnd' (reduce S A B k) := by
+  ext; apply (pushforward.isPullback (Ext.isPullbackLeft A f)
+        (Ext.isPullbackLeft B (A.pullbackFst f))).hom_ext
+  . simp [reduce, Section.ofEq, intro_stable_aux₂_inv]
+    rw [← comp_hom_assoc, ← (Section.liftCommSq f k).w, comp_hom_assoc]
+  . simp
+
+lemma elim_stable {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Ext Γ) (B : Ext A.obj)
+  (k : Section (form S A B)) (a : Section A) :
+    elim S (A.pullback f) (B.pullback (A.pullbackFst f)) ((k.lift f).ofEq (form_stable S f A B))
+      (a.lift f) = (a.liftCommSq f).liftIsPullbackAlong' (B.pullbackIsPullback (A.pullbackFst f))
+        (elim S A B k a) := by
+  ext : 1
+  apply (B.pullbackIsPullback (A.pullbackFst f)).hom_ext
+  . ext; simp
+    let is := Ext.isPullbackLeft A f
+    let is' := Ext.isPullbackLeft B (A.pullbackFst f)
+    let is₁ := IsPullback.of_hasPullback
+      ((Π(A.pullback f).hom.hom).obj (Over.mk (B.pullback (A.pullbackFst f)).hom.hom)).hom
+      (A.pullback f).hom.hom
+    let is₂ := IsPullback.of_hasPullback ((ΠA.hom.hom).obj (Over.mk B.hom.hom)).hom A.hom.hom
+    let is₃ := pushforward.isPullback is is'
+    have aux₀ : is₃.toCommSq.liftIsPullbackAlong' (pushforward.isPullback is is') (𝟙 _) =
+      𝟙 _ := by ext; apply (pushforward.isPullback is is').hom_ext <;> simp
+    conv_lhs =>
+      simp only [elim, Over.homMk_left, IsPullback.liftIsPullbackAlong', Category.assoc,
+        Over.comp_left]
+      rw [← aux₀, elim_stable_aux S f A B k]
+    erw [pushforward.adj_symm_comp is is' is₁ is₂ is₃.toCommSq (𝟙 _)]
+    rw [is₃.sectionSnd'_sectionSnd' is₁ is₂ (f' := pushforward.liftAux is is₁ is₂ is₃.toCommSq)
+      (i' := (A.pullbackFst f).hom) (w := by simp) (w' := by rw [← comp_hom, is.w, comp_hom])
+      (w'' := by simp)]
+    simp [IsPullback.liftIsPullbackAlong_fst_assoc]
+    rw [← comp_hom_assoc, ← (Section.liftCommSq f a).w, comp_hom_assoc]; rfl
+  . simp
+
 end Pi
 
 variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasBinaryProducts C] in
@@ -956,7 +1022,7 @@ def Pi_type (S : Pi.Structure U) : Pi_type (U.Chains t) where
   compt := compt S
   form_stable := form_stable S
   intro_stable := intro_stable S
-  elim_stable := sorry
+  elim_stable := elim_stable S
 
 /-
 section
