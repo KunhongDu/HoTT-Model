@@ -129,6 +129,12 @@ attribute [instance] WellOrderedHom.ord WellOrderedHom.isWellOrder
 
 notation X " ⟶ₒ " Y => WellOrderedHom X Y
 
+@[simp]
+noncomputable def toWO (f : X ⟶ Y) : X ⟶ₒ Y where
+  hom := f
+  ord := by classical exact linearOrderOfSTO WellOrderingRel
+  isWellOrder := WellOrderingRel.isWellOrder
+
 abbrev WellOrderedHom.Fibre (f : X ⟶ₒ Y) {n : SimplexCategoryᵒᵖ}
   (y : Y.obj n) := SSet.Fibre f.hom y
 
@@ -386,6 +392,11 @@ structure SmallWO (Y : SSet.{u}) where
   of : SSet.{u}
   wo : of ⟶ₒ Y
   small : SmallFibre α wo.hom
+
+@[simp]
+noncomputable def toSmallWO (f : X ⟶ Y) (hf : SmallFibre α f) : SmallWO α Y where
+  wo := toWO f
+  small := hf
 
 abbrev SmallWO.hom (f : SmallWO α Y) := f.wo.hom
 

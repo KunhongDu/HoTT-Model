@@ -473,6 +473,23 @@ def betac.subst {A A' B B' : PTerm S} {n : ℕ} (h₁ : A ≃β A') (h₂ : B �
     A{B // n} ≃β A'{B'//n} :=
   h₁.substl.trans _ _ _ h₂.substr
 
+lemma betar.eq_of_sort_betar {s : S.sort} {A : PTerm S} :
+    (!s) ↠β A → A = !s := sorry
+
+def betac.confl {A B : PTerm S} (h : A ≃β B) : Σ (C : PTerm S), (A ↠β C) × (B ↠β C) := sorry
+alias betac_confl := betac.confl
+
+def betar_of_betac_sort {s : S.sort} {t : PTerm S} (h : t ≃β (!s)) :
+    t ↠β (!s) := by
+  let H := h.confl
+  rw [← H.2.2.eq_of_sort_betar]
+  exact H.2.1
+
+lemma betac.eq_of_sort_betac_sort {s₁ s₂ : S.sort} (h : (!s₁) ≃β (!s₂)) :
+    s₁ = s₂ := by
+  let H := h.confl
+  simpa using H.2.1.eq_of_sort_betar.symm.trans H.2.2.eq_of_sort_betar
+
 end Reduction
 
 section Typing
@@ -497,7 +514,6 @@ inductive typing {S : Specification} : PCtx S → PTerm S → PTerm S → Type _
 
 end
 
-#check typing.rec
 notation:20 Γ " ⊢ ⬝ " => wf Γ
 notation:20 Γ " ⊢ " a  " : " A => typing Γ a A
 
@@ -510,17 +526,26 @@ def wf_of_typing : ∀ (_ : Γ ⊢ t : T), Γ ⊢ ⬝
 | .abs _ _ _ _ _ _ _ _ h _ _ => wf_of_typing h
 | .app _ _ _ _ _ h _ => wf_of_typing h
 | .conv Γ a A B s h₀ h₁ h₂ => wf_of_typing h₁
+alias typing.wf := wf_of_typing
 
 lemma exists_of_cons (h : A :: Γ ⊢ ⬝) : ∃ s, Nonempty (Γ ⊢ A : !s) := by
   cases h with
   | cons Γ A s h => exact ⟨s, ⟨h⟩⟩
 
+-- remove it later, substitute by `wf.sort_of_cons`
 def exists_of_cons' (h : A :: Γ ⊢ ⬝) : Σs, (Γ ⊢ A : !s) := by
   cases h with
   | cons Γ A s h => exact ⟨s, h⟩
 
+def wf.sort_of_cons {Γ : PCtx S} {A : PTerm S} : (A :: Γ ⊢ ⬝) → S.sort
+| .cons Γ A s h => s
+
+def wf.typing_of_cons {Γ : PCtx S} {A : PTerm S} :
+    (h : A :: Γ ⊢ ⬝) → (Γ ⊢ A : !(h.sort_of_cons))
+| .cons Γ A s h => h
+
 def wf_of_cons (h : A :: Γ ⊢ ⬝) : Γ ⊢ ⬝ :=
-  wf_of_typing (exists_of_cons' h).snd
+  wf_of_typing h.typing_of_cons
 
 open Relation
 /-
@@ -945,6 +970,18 @@ lemma isMor.length_eq {Γ : PCtx S} : ∀ {Δ F : PCtx S} (_ : isMor Γ Δ F), �
 | [], _, h => by cases h.of_nil; rfl
 | _ :: _, _ :: _, .cons h _ _ => by simp [h.length_eq]
 
+def isMor.of_cons {Γ Δ F : PCtx S} {D f : PTerm S} :
+  ∀ (_ : isMor Γ (D :: Δ) (f :: F)), isMor Γ Δ F
+| .cons h _ _ => h
+
+def isMor.typing_of_cons {Γ Δ F : PCtx S} {D f : PTerm S} :
+  ∀ (_ : isMor Γ (D :: Δ) (f :: F)), Γ ⊢ f : (simulSubst D 0 F)
+| .cons _ _ h => h
+
+def isMor.typing_sort_of_cons {Γ Δ F : PCtx S} {D f : PTerm S} :
+  ∀ (_ : isMor Γ (D :: Δ) (f :: F)), Σ(s : S.sort), Γ ⊢ simulSubst D 0 F : !s
+| .cons _ h _ => ⟨_, h⟩
+
 lemma isSubst.length_eq_add_one {Γ Δ Δ' : PCtx S} : ∀ (_ : isSubst Γ f A n Δ Δ'),
   Δ.length = Δ'.length + 1
 | .zero => by simp
@@ -1348,19 +1385,23 @@ def isMorAux {k} {Γ Δ : PCtx S} {A} (h₀ : isTrunc k Γ (A :: Δ)) (h₁ : Γ
   apply aux₁wf
   apply wf_of_isTrunc h₀ h₁
 
-def id_isMor : ∀ {Γ Δ : PCtx S} (_ : isTrunc k Γ Δ) (_ : Γ ⊢ ⬝), isMor Γ Δ (id₀ k Δ)
+def id₀_isMor : ∀ {Γ Δ : PCtx S} (_ : isTrunc k Γ Δ) (_ : Γ ⊢ ⬝), isMor Γ Δ (id₀ k Δ)
 | Γ, [], h, h' => by apply isMor.nil
 | Γ, A :: Δ, h, h' => by
     apply isMor.cons
-    apply id_isMor (isTrunc.pred h) h'
+    apply id₀_isMor (isTrunc.pred h) h'
     simpa [simulSubst_sort] using simulSubst_typing
       (append_typing h' (exists_of_cons' (wf_of_isTrunc h h')).snd)
-      (isMor'_isMor (id_isMor (isTrunc.pred h) h'))
+      (isMor'_isMor (id₀_isMor (isTrunc.pred h) h'))
     apply isMorAux h h'
 
-def id_isMor_tail : ∀ {Γ : PCtx S} (_ : Γ ⊢ ⬝), isMor Γ Γ.tail (id₀ 1 Γ.tail)
+def id₀_isMor_tail : ∀ {Γ : PCtx S} (_ : Γ ⊢ ⬝), isMor Γ Γ.tail (id₀ 1 Γ.tail)
 | [], _ => isMor.nil
-| A :: Γ, h => by apply id_isMor (isTrunc.succ _ (isTrunc.zero _)) h
+| A :: Γ, h => by apply id₀_isMor (isTrunc.succ _ (isTrunc.zero _)) h
+
+def id_isMor (Γ : PCtx S) (h : Γ ⊢ ⬝) :
+    isMor Γ Γ (id Γ) :=
+  id₀_isMor (isTrunc.zero _) h
 
 end id
 
@@ -1373,7 +1414,7 @@ section
 
 lemma simulSubst_lift {A : PTerm S} {k : ℕ}  :
   ∀ {F : PCtx S} (_ : (A ↑ 1 # k + F.length) = A),
-    ((simulSubst A k F) ↑ 1 # k) = simulSubst A k (F ↑↑ 1 # 0)
+    ((simulSubst A k F) ↑ 1 # k) = simulSubst A k (F ↑↑ 1)
 | [], h => by simpa
 | f :: F, h => by
   simp
@@ -1419,17 +1460,69 @@ end
 
 section
 
-def pcomp_id₀ : ∀ {F G : PCtx S} (_ : isTrunc k F G), pcomp F (id₀ k G) = G
+-- invariance of lift for PCtx
+
+lemma lift_inv_of_isMor {Γ : PCtx S} : ∀ {Δ F : PCtx S} (_ : isMor Γ Δ F),
+  (F ↑↑ 1 # Γ.length) = F
+| _, [], h => by rfl
+| D :: Δ, f :: F, .cons h₁ h₂ h₃ => by
+  simp [PCtx.lift]
+  congr
+  . exact lift_inv_of_typing h₃
+  . apply lift_inv_of_isMor h₁
+
+end
+
+section
+
+-- `(f ∘ g, #0) = (f, #0) ∘ (g, #0)`
+lemma zero_cons_pcomp_zero_cons_aux₁ {g : PTerm S} : ∀ {F : PCtx S} ,
+    simulSubst (g ↑ 1) (k + 1) F = (simulSubst g k F) ↑ 1
+| [] => by simp
+| f :: F => by
+  simp
+  rw [zero_cons_pcomp_zero_cons_aux₁, subst_lift_of_le _ _ _ (by simp), Nat.add_comm k]
+
+lemma zero_cons_pcomp_zero_cons_aux₂ {F : PCtx S} : ∀ {G : PCtx S}
+  (_ : (G ↑↑ 1 # F.length) = G),
+    pcomp ((#0) :: F ↑↑ 1) (G ↑↑ 1) = pcomp F G ↑↑ 1
+| [], h => by rfl
+| g :: G, h => by
+  simp [PCtx.lift] at h
+  rw [List.cons.injEq] at h
+  simp [pcomp]
+  congr 1
+  . rw [simulSubst_lift (by simpa using h.1)]
+    rw [zero_cons_pcomp_zero_cons_aux₁, lift_subst_of_le_of_le 0 _ _ (by simp) (by simp),
+      lift_zero]
+  . apply zero_cons_pcomp_zero_cons_aux₂ h.2
+
+lemma zero_cons_pcomp_zero_cons {F G : PCtx S} (h : (G ↑↑ 1 # F.length) = G) :
+    pcomp ((#0) :: F ↑↑ 1) ((#0) :: G ↑↑ 1) = (#0) :: (pcomp F G) ↑↑ 1 := by
+  simp [pcomp]
+  congr 1
+  . rw [simulSubst_var_of_lt (by simp)]; rfl
+  . apply zero_cons_pcomp_zero_cons_aux₂ h
+
+end
+
+section
+
+def pcomp_id₀_aux : ∀ {F G : PCtx S} (_ : isTrunc k F G), pcomp F (id₀ k G) = G
 | F, [], h => rfl
 | F, g :: G, h => by
   simp [pcomp]
   congr
   apply simulSubst_var_of_isTrunc h
-  apply pcomp_id₀ h.pred
+  apply pcomp_id₀_aux h.pred
+
+def pcomp_id₀ {F G Δ : PCtx S} (h : isTrunc k F G) (h' : Δ.length = G.length) :
+    pcomp F (id₀ k Δ) = G := by
+  convert pcomp_id₀_aux h using 2
+  simp [id₀, id, h']
 
 def pcomp_id {Γ Δ F : PCtx S} (h : isMor Γ Δ F) : pcomp F (id Δ) = F := by
-  convert pcomp_id₀ (isTrunc.zero _) using 2
-  simp [id₀, id, h.length_eq]
+  apply pcomp_id₀ (isTrunc.zero _) h.length_eq
 
 end
 
@@ -1446,6 +1539,11 @@ def ctx_beta_exp_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢ 
     Γ' ⊢ a : A := sorry
 
 def term_betar_typing : ∀ {Γ : PCtx S} {t s M} (_: Γ ⊢ t : M) (_ : t ↠β s), Γ ⊢ s : M := sorry
+alias subject_reduction := term_betar_typing
+
+def betac_of_pi_betac : ∀ {A B A' B' : PTerm S} (_ : Π.A B ≃β Π.A' B'),
+    A ≃β A' × B ≃β B' := sorry
+alias pi_inj := betac_of_pi_betac
 
 def ctx_beta_wf {Γ Γ' : PCtx S} (h₁ : Γ ⊢ ⬝) (h₂ : Γ' →β Γ) :
     Γ' ⊢ ⬝ := sorry
@@ -1464,8 +1562,6 @@ def ctx_betar_exp_typing {Γ Γ' : PCtx S} (h₁ : Γ ⊢ a : A) (h₂ : Γ' ⊢
 | .beta _ _ h => sorry
 | .refl _ => h₁
 | .trans _ _ _ h₃ h₄ => sorry
-
-def betac_confl {A B : PTerm S} (h : A ≃β B) : Σ (C : PTerm S), (A ↠β C) × (B ↠β C) := sorry
 
 def ctx_betac_confl : ∀ {Γ Δ : PCtx S} (_ : Γ ≃β Δ),
     Σ (Θ : PCtx S), (Γ ↠β Θ) × (Δ ↠β Θ)

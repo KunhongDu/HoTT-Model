@@ -4,7 +4,7 @@ open CategoryTheory CategoryTheory.Limits
 
 universe u
 
-class PreContextualCategory (α : Type u) extends Category α where
+class PreContextualCategory (α : Type u) extends Category.{v} α where
   gr : α → ℕ
   one : α
   one_gr : gr one = 0
@@ -75,6 +75,10 @@ lemma gr_ft_iterate' (h : k ≤ gr a) : gr a = gr (ft^[k] a) + k := by
 
 def Ext.hom {a : α} (e : Ext a) :
     e.obj ⟶ a := proj e.obj ≫ eqToHom e.ft'
+
+@[reassoc]
+lemma Ext.proj_comp_eqToHom {a : α} (e : Ext a) :
+    proj e.obj ≫ eqToHom e.ft' = e.hom := rfl
 
 def Ext.pullback (b : Ext a) (f : c ⟶ a) : Ext c where
   obj := pb (f ≫ eqToHom b.ft'.symm)

@@ -16,6 +16,9 @@ def PCtx.cons (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ ⊢ ⬝)) : Ctx
   ctx := A :: Γ
   wf := h
 
+def Ctx.cons (Γ : Ctx S) (A : PTerm S) (h : Nonempty (A :: Γ.ctx ⊢ ⬝)) : Ctx S :=
+  Γ.ctx.cons A h
+
 namespace Ctx
 
 def wf' (Γ : Ctx S) : Γ.ctx ⊢ ⬝ := choice Γ.wf
@@ -78,15 +81,21 @@ namespace QCtx
 
 def wf (Γ : QCtx S) : [Γ]ᵣ ⊢ ⬝ := choice Γ.out.wf
 
+section Contextual
+
 structure hom₀ (Γ Δ : Ctx S) where
   seq : PCtx S
   is : Nonempty (isMor Γ.ctx Δ.ctx seq)
+
+def hom₀.is' {Γ Δ : Ctx S} (f : hom₀ Γ Δ) :
+    isMor Γ.ctx Δ.ctx f.seq :=
+  choice f.is
 
 def _root_.PureTypeSystem.Ctx.proj : (Γ : Ctx S) → hom₀ Γ Γ.tail
 | .mk [] _ => ⟨[], ⟨isMor.nil⟩⟩
 | .mk (_ :: Γ) h => {
   seq := id₀ 1 Γ
-  is := ⟨id_isMor (isTrunc.succ _ (isTrunc.zero _)) (choice h)⟩
+  is := ⟨id₀_isMor (isTrunc.succ _ (isTrunc.zero _)) (choice h)⟩
 }
 
 namespace hom₀
@@ -121,7 +130,7 @@ def hom.is (γ : hom Γ Δ) : isMor [Γ]ᵣ [Δ]ᵣ [γ]ᵣ := choice γ.out.is
 
 protected def id₀ (Γ : QCtx S) : hom₀ Γ.out Γ.out where
   seq := id₀ 0 [Γ]ᵣ
-  is := ⟨id_isMor (isTrunc.zero _) Γ.wf⟩
+  is := ⟨id_isMor _ Γ.wf⟩
 
 protected def id (Γ : QCtx S) : hom Γ Γ := ⟦Γ.id₀⟧
 
@@ -153,6 +162,8 @@ instance : Category (QCtx S) where
     rw [pcomp_id f.is]
     apply PCtx.betac.refl _
   assoc := sorry
+
+instance : Category (Quotient (Ctx.setoid S)) := QCtx.instCategory
 
 def one : QCtx S := ⟦Ctx.nil⟧
 
@@ -208,26 +219,28 @@ def ft_mk_cons_rep_betac (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ ⊢ 
   (ft_rep_betac_rep_tail ⟦Γ.cons A h⟧).trans _ _ _
     ((Γ.cons A h).mk_rep_betac.tail')
 
+@[simp]
+lemma ft_cons_eq (Γ : QCtx S) (A : PTerm S) (h : Nonempty (A :: [Γ]ᵣ ⊢ ⬝)) :
+    ft ⟦[Γ]ᵣ.cons A h⟧ = Γ := by
+  rw [← Quotient.out_equiv_out]
+  exact ⟨by apply ft_mk_cons_rep_betac⟩
+
 def proj₀ (Γ : Ctx S) : hom ⟦Γ⟧ (ft ⟦Γ⟧) := Quotient.mk' {
   seq := id₀ 1 Γ.ctx.tail
   is := ⟨isMor_betac Γ.wf' (Ctx.wf' _) (Ctx.wf' _) Γ.mk_rep_betac.symm
       ((Γ.mk_rep_betac.tail'.symm).trans _ _ _ (ft_rep_betac_rep_tail _).symm)
-      (id_isMor_tail Γ.wf')⟩
+      (id₀_isMor_tail Γ.wf')⟩
 }
 
-lemma test {Γ Δ : QCtx S} {f : Γ ⟶ Δ} {g : Γ ⟶ Δ} (h : [f]ᵣ ≃β [g]ᵣ) :
-    f = g := by
-  rw [← Quotient.out_equiv_out]
-  exact ⟨h⟩
-
-lemma test' {Γ Γ' Δ Δ' : QCtx S} (h₁ : Γ = Γ') (h₂ : Δ = Δ')
-  {f : Γ ⟶ Δ} {f' : Γ' ⟶ Δ'} (h : [f]ᵣ ≃β [f']ᵣ) :
-      HEq f f' := by
-  cases h₁; cases h₂; simp only [heq_eq_eq]
-  apply test h
+lemma hom_heq_of_betac {Γ Γ' Δ Δ' : QCtx S} (h₁ : Γ = Γ') (h₂ : Δ = Δ')
+  {f : Γ ⟶ Δ} {g : Γ' ⟶ Δ'} (h₃ : [f]ᵣ ≃β [g]ᵣ) :
+    HEq f g := by
+  cases h₁; cases h₂
+  simp; rw [← Quotient.out_equiv_out]
+  exact ⟨h₃⟩
 
 lemma proj₀_sound (Γ Δ : Ctx S) (h : Γ ≈ Δ) : HEq (proj₀ Γ) (proj₀ Δ) := by
-  apply test' (Quotient.sound h) (congrArg _ (Quotient.sound h))
+  apply hom_heq_of_betac (Quotient.sound h) (congrArg _ (Quotient.sound h))
   refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ ((hom₀.mk_rep_betac _).symm)
   simp only [Ctx.tail_eq_list_tail, id₀]
   convert PCtx.betac.refl _ using 2
@@ -235,6 +248,8 @@ lemma proj₀_sound (Γ Δ : Ctx S) (h : Γ ≈ Δ) : HEq (proj₀ Γ) (proj₀ 
 
 def proj (Γ : QCtx S) : Γ ⟶ Γ.ft :=
   Quotient.hrecOn (motive := fun Γ : QCtx S ↦ Γ ⟶ Γ.ft) _ _ proj₀_sound
+
+lemma proj_spec (Γ : Ctx S) : proj ⟦Γ⟧ = proj₀ Γ := rfl
 
 instance instPreContextualCategory : PreContextualCategory (QCtx S) where
   gr Γ := [Γ]ᵣ.length
@@ -368,22 +383,27 @@ def betac_of_heq {A B A' B' : QCtx S} {f : A ⟶ B} {g : A' ⟶ B'}
   rw [← Quotient.out_equiv_out] at h₃
   exact choice h₃
 
+lemma pb_cons_sound_aux {Δ : QCtx S} {Γ Γ' : PCtx S} {A A' : PTerm S}
+  {h : Nonempty (A :: Γ ⊢ ⬝)} {h' : Nonempty (A' :: Γ' ⊢ ⬝)} (eqv : Γ.cons A h ≈ Γ'.cons A' h')
+  (f : Δ ⟶ ft ⟦Γ.cons A h⟧) (f' : Δ ⟶ ft ⟦Γ'.cons A' h'⟧) (hf : HEq f f') :
+    Δ.pb_cons Γ A h f = Δ.pb_cons Γ' A' h' f' := by
+  rw [← Quotient.out_equiv_out]
+  constructor
+  simp [pb_cons]
+  refine (Ctx.mk_rep_betac _).trans _ _ _ ?_
+  refine PCtx.betac.trans _ _ _ ?_ (Ctx.mk_rep_betac _).symm
+  simp [pb_cons₀]
+  apply betac.of_head_of_eq
+  apply simulSubst_betac (choice eqv).head
+  apply betac_of_heq (HEq.refl _) _ hf
+  congr 1; apply Quotient.sound eqv
+
 lemma pb_cons_sound (Δ : QCtx S) (Γ Γ' : PCtx S) (A A' : PTerm S)
   (h : Nonempty (A :: Γ ⊢ ⬝)) (h' : Nonempty (A' :: Γ' ⊢ ⬝)) (eqv : Γ.cons A h ≈ Γ'.cons A' h') :
     HEq (Δ.pb_cons Γ A h) (Δ.pb_cons Γ' A' h') := by
   apply heq_aux_func
   . congr 2; apply Quotient.sound eqv
-  . intro f g hfg
-    rw [← Quotient.out_equiv_out]
-    constructor
-    simp [pb_cons]
-    refine (Ctx.mk_rep_betac _).trans _ _ _ ?_
-    refine PCtx.betac.trans _ _ _ ?_ (Ctx.mk_rep_betac _).symm
-    simp [pb_cons₀]
-    apply betac.of_head_of_eq
-    apply simulSubst_betac (choice eqv).head
-    apply betac_of_heq (HEq.refl _) _ hfg
-    congr 1; apply Quotient.sound eqv
+  . apply pb_cons_sound_aux eqv
 
 def pb {Γ Δ : QCtx S} [NR Γ] : (f : Δ ⟶ Γ.ft) → QCtx S :=
   cases_cons (pb_cons Δ) (pb_cons_sound Δ) Γ
@@ -420,16 +440,29 @@ def pb_fst_cons (Δ : QCtx S) (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ
   (f : Δ ⟶ ft ⟦Γ.cons A h⟧) :
     Δ.pb_cons Γ A h f ⟶ ⟦Γ.cons A h⟧ := ⟦Δ.pb_fst_cons₀ Γ A h f⟧
 
-lemma hom_heq_of_betac {Γ Γ' Δ Δ' : QCtx S} (h₁ : Γ = Γ') (h₂ : Δ = Δ')
-  {f : Γ ⟶ Δ} {g : Γ' ⟶ Δ'} (h₃ : [f]ᵣ ≃β [g]ᵣ) :
+lemma heq_aux_dep_func {A B : Sort u} {φ : A → Sort v} {ψ : B → Sort v}
+  (f : (a : A) → φ a) (g : (b : B) → ψ b) (h₁ : A = B) (h₂ : HEq φ ψ)
+  (h₃ : ∀ (a : A) (b : B), HEq a b → HEq (f a) (g b)) :
     HEq f g := by
   cases h₁; cases h₂
-  simp; rw [← Quotient.out_equiv_out]
-  exact ⟨h₃⟩
+  simp; ext c
+  simpa using h₃ c c (by rfl)
 
 lemma pb_fst_cons_sound (Δ : QCtx S) (Γ Γ' : PCtx S) (A A' : PTerm S)
   (h : Nonempty (A :: Γ ⊢ ⬝)) (h' : Nonempty (A' :: Γ' ⊢ ⬝)) (eqv : Γ.cons A h ≈ Γ'.cons A' h'):
-    HEq (Δ.pb_fst_cons Γ A h) (Δ.pb_fst_cons Γ' A' h') := sorry
+    HEq (Δ.pb_fst_cons Γ A h) (Δ.pb_fst_cons Γ' A' h') := by
+  apply heq_aux_dep_func
+  . rw [Quotient.sound eqv]
+  . apply heq_aux_func
+    . rw [Quotient.sound eqv]
+    . intro f g hfg
+      rw [Quotient.sound eqv]
+      congr 1
+      apply pb_cons_sound_aux eqv _ _ hfg
+  . intro f g hfg
+    apply hom_heq_of_betac (pb_cons_sound_aux eqv _ _ hfg) (Quotient.sound eqv)
+    refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ (hom₀.mk_rep_betac _).symm
+    exact (betac_of_heq (by rfl) (by rw [Quotient.sound eqv]) hfg).lift.of_tail_of_eq
 
 def pb_fst {Γ Δ : QCtx S} [NR Γ] : (f : Δ ⟶ Γ.ft) → (pb f ⟶ Γ) := by
   apply cases_cons (motive := fun (x : QCtx S) [NR x] ↦ (f : Δ ⟶ x.ft) → (pb f ⟶ x))
@@ -469,7 +502,7 @@ lemma isPullback_cons (Δ : QCtx S) (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A
       (proj (Δ.pb_cons Γ A h f) ≫ eqToHom (Δ.ft_pb_cons Γ A h f))
       (proj ⟦Γ.cons A h⟧) f := sorry
 
-lemma isPullback {Γ Δ : QCtx S} [NR Γ] {f : Δ ⟶ Γ.ft} :
+lemma isPullback {Γ Δ : QCtx S} [NR Γ] (f : Δ ⟶ Γ.ft) :
     IsPullback (pb_fst f) (proj (pb f) ≫ eqToHom ft_pb) (proj Γ) f :=
   cases_cons_prop (motive := fun (x : QCtx S) [NR x] ↦ {f : Δ ⟶ ft x} →
       IsPullback (pb_fst f) (proj (pb f) ≫ eqToHom ft_pb) (proj x) f) Δ.isPullback_cons Γ
@@ -494,9 +527,10 @@ lemma _root_.CategoryTheory.eqToHom_comp_eq_iff {C : Type u₁} [CategoryTheory.
   constructor
   all_goals cases h; simp
 
+variable (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ ⊢ ⬝)) (x : QCtx S)
+
 lemma pullback_id_map_cons (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ ⊢ ⬝)) :
-    eqToHom (pullback_id_obj_cons Γ A h).symm ≫ pb_fst (𝟙 (ft ⟦Γ.cons A h⟧)) = 𝟙 _ := by
-  rw [eqToHom_comp_eq_iff]
+  HEq (pb_fst (𝟙 (ft ⟦Γ.cons A h⟧))) (𝟙 (⟦Γ.cons A h⟧ : QCtx S)) := by
   apply hom_heq_of_betac (pullback_id_obj_cons Γ A h) rfl
   simp [pb_fst_cons]
   refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ (id_rep_betac _).symm
@@ -509,17 +543,15 @@ lemma pullback_id_map_cons (Γ : PCtx S) (A : PTerm S) (h : Nonempty (A :: Γ �
   apply PCtx.betac.refl _
 
 lemma pullback_id_map {Γ : QCtx S} [NR Γ] :
-    eqToHom pullback_id_obj.symm ≫ pb_fst (𝟙 (ft Γ)) = 𝟙 Γ :=
+    HEq (pb_fst (𝟙 (ft Γ))) (𝟙 Γ) :=
   cases_cons_prop (motive := fun (x : QCtx S) [NR x] ↦
-    (eqToHom pullback_id_obj.symm ≫ pb_fst (𝟙 (ft x)) = 𝟙 x)) pullback_id_map_cons Γ
-
-#check ContextualCategory.pullback_comp_obj
+    (HEq (pb_fst (𝟙 (ft x))) (𝟙 x))) pullback_id_map_cons Γ
 
 instance NR_pb {Δ Γ : QCtx S} [NR Γ] {f : Δ ⟶ ft Γ} :
     NR (pb f) := ⟨gr_pb⟩
 
 lemma pullback_comp_obj_cons (Δ Θ : QCtx S) (Γ : PCtx S) (A : PTerm S)
-  (h : Nonempty (A :: Γ ⊢ ⬝)) (f : Δ ⟶ ft ⟦Γ.cons A h⟧) (g : θ ⟶ Δ) :
+  (h : Nonempty (A :: Γ ⊢ ⬝)) (f : Δ ⟶ ft ⟦Γ.cons A h⟧) (g : Θ ⟶ Δ) :
     pb (g ≫ f) = pb (g ≫ eqToHom (ft_pb (f := f).symm)) := by
   apply Quotient.sound
   constructor
@@ -533,26 +565,198 @@ lemma pullback_comp_obj_cons (Δ Θ : QCtx S) (Γ : PCtx S) (A : PTerm S)
   rw [ft_pb]
   apply isMor_betac₂ (Ctx.wf' _) (ft_mk_cons_rep_betac Γ A h) (wf_of_cons (choice h)) f.is
 
-lemma pullback_comp_obj {Γ Δ Θ : QCtx S} [NR Γ] {f : Δ ⟶ ft Γ} {g : Θ ⟶ Δ}:
+lemma pullback_comp_obj {Γ Δ Θ : QCtx S} [NR Γ] {f : Δ ⟶ ft Γ} {g : Θ ⟶ Δ} :
     pb (g ≫ f) = pb (g ≫ eqToHom (ft_pb (f := f)).symm) :=
   cases_cons_prop (motive := fun (x : QCtx S) [NR x] ↦ {f : Δ ⟶ ft x} → {g : Θ ⟶ Δ} →
     pb (g ≫ f) = pb (g ≫ eqToHom (ft_pb (f := f)).symm)) (pullback_comp_obj_cons Δ Θ) Γ
 
+lemma pullback_comp_map_cons (Δ Θ : QCtx S) (Γ : PCtx S) (A : PTerm S)
+  (h : Nonempty (A :: Γ ⊢ ⬝)) (f : Δ ⟶ ft ⟦Γ.cons A h⟧) (g : Θ ⟶ Δ) :
+    HEq (pb_fst (g ≫ f)) (pb_fst (g ≫ eqToHom ft_pb.symm) ≫ pb_fst f) := by
+  symm; apply hom_heq_of_betac pullback_comp_obj.symm rfl
+  refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ (hom₀.mk_rep_betac _).symm
+  refine (pcomp_betac (hom₀.mk_rep_betac _) (hom₀.mk_rep_betac _)).trans _ _ _ ?_
+  simp [pb_fst_cons₀]
+  let r :  [g ≫ eqToHom (ft_pb (f := f)).symm]ᵣ ≃β [g]ᵣ := by
+    apply betac_of_heq (by rfl) (by simp; apply ft_pb_cons)
+    simp only [comp_eqToHom_heq_iff, heq_eq_eq]
+  refine (pcomp_betac₁ r.lift.of_tail_of_eq).trans _ _ _ ?_
+  rw [zero_cons_pcomp_zero_cons]
+  refine (PCtx.betac.trans _ _ _ ?_ (hom₀.mk_rep_betac _).symm).lift.of_tail_of_eq
+  apply PCtx.betac.refl _
+  rw [← g.is.length_eq]
+  apply lift_inv_of_isMor f.is
 
+lemma pullback_comp_map {Γ Δ Θ : QCtx S} [NR Γ] {f : Δ ⟶ ft Γ} {g : Θ ⟶ Δ} :
+    HEq (pb_fst (g ≫ f)) (pb_fst (g ≫ eqToHom ft_pb.symm) ≫ pb_fst f) :=
+  cases_cons_prop (motive := fun (x : QCtx S) [NR x] ↦ {f : Δ ⟶ ft x} → {g : Θ ⟶ Δ} →
+    HEq (pb_fst (g ≫ f)) (pb_fst (g ≫ eqToHom ft_pb.symm) ≫ pb_fst f))
+      (pullback_comp_map_cons Δ Θ) Γ
 
-/-
 instance : ContextualCategory (QCtx S) where
-  pb := _
-  pb_fst := _
-  gr_pb := _
-  ft_pb := _
-  isPullback := _
-  pullback_id_obj := _
-  pullback_id_map := _
-  pullback_comp_obj := _
-  pullback_comp_map := _
--/
+  pb := pb
+  pb_fst := pb_fst
+  gr_pb := gr_pb
+  ft_pb := ft_pb
+  isPullback := isPullback
+  pullback_id_obj := pullback_id_obj
+  pullback_id_map := pullback_id_map
+  pullback_comp_obj := pullback_comp_obj
+  pullback_comp_map := pullback_comp_map
 
+@[simp]
+lemma gr_eq {Γ : QCtx S} :
+    PreContextualCategory.gr Γ = [Γ]ᵣ.length := rfl
+
+@[simp]
+lemma one_eq :
+    PreContextualCategory.one (α := QCtx S) = one := rfl
+
+@[simp]
+lemma ft_eq {Γ : QCtx S} :
+    PreContextualCategory.ft Γ = ft Γ := rfl
+
+@[simp]
+lemma proj_eq {Γ : QCtx S} :
+    PreContextualCategory.proj Γ = proj Γ := rfl
+
+@[simp]
+lemma pb_eq {Γ Δ : QCtx S} [NR Γ] (f : Δ ⟶ Γ.ft) :
+    ContextualCategory.pb f = pb f := rfl
+
+@[simp]
+lemma pb_fst_eq {Γ Δ : QCtx S} [NR Γ] (f : Δ ⟶ Γ.ft) :
+    ContextualCategory.pb_fst f = pb_fst f := rfl
+
+end Contextual
+
+open ContextualCategory
+
+abbrev Ext (Γ : QCtx S) : Type _ := ContextualCategory.Ext Γ
+
+namespace Ext
+
+variable {Γ : QCtx S} (Δ : Ext Γ)
+
+def mk (A : PTerm S) (h : Nonempty (A :: [Γ]ᵣ ⊢ ⬝)) :
+    Ext Γ where
+  obj := ⟦([Γ]ᵣ).cons A h⟧
+  ft' := by simp only [ft_eq, ft_cons_eq]
+  gr' := by
+    simp [(Ctx.mk_rep_betac _).length_eq, PCtx.cons]
+
+lemma rep_not_nil : [Δ.obj]ᵣ ≠ [] :=
+  List.ne_nil_of_length_eq_add_one Δ.gr'
+
+lemma length_eq_add_one : [Δ.obj]ᵣ.length = [Γ]ᵣ.length + 1 :=
+  Δ.gr'
+
+def head : PTerm S := [Δ.obj]ᵣ.head Δ.rep_not_nil
+
+def tail : PCtx S := [Δ.obj]ᵣ.tail
+
+lemma head_cons_tail : Δ.head :: Δ.tail = [Δ.obj]ᵣ := by
+  simp [head, tail]
+
+def tail_wf : Δ.tail ⊢ ⬝ := by
+  apply wf_of_cons (A := Δ.head)
+  rw [head_cons_tail]
+  apply wf
+
+def tail_betac : Δ.tail ≃β [Γ]ᵣ := by
+  convert (ft_rep_betac_rep_tail _).symm
+  exact Δ.ft'.symm
+
+def head_cons_wf : (Δ.head :: [Γ]ᵣ) ⊢ ⬝ := by
+  apply ctx_betac_wf_cons (Γ := Δ.tail) _ (wf _) Δ.tail_betac
+  rw [head_cons_tail]; apply wf
+
+def hom_betac : [Δ.hom]ᵣ ≃β id₀ 1 [Γ]ᵣ := by
+  let r : [Δ.hom]ᵣ ≃β [proj Δ.obj]ᵣ := by
+    apply betac_of_heq (by rfl) (by simp; apply Δ.ft'.symm)
+    simp [Ext.hom]
+  refine r.trans _ _ _ ?_
+  rw [← Quotient.out_eq Δ.obj, proj_spec]
+  refine (hom₀.mk_rep_betac _).trans _ _ _ ?_
+  simp [id₀]
+  convert PCtx.betac.refl _
+  rw [length_eq_add_one, Nat.add_one_sub_one]
+
+lemma eq_mk : Δ = mk Δ.head ⟨head_cons_wf _⟩ := by
+  ext; simp [mk]
+  rw [← Quotient.out_equiv_out]
+  constructor
+  rw [← head_cons_tail]
+  refine PCtx.betac.trans _ _ _ ?_ (Ctx.mk_rep_betac _).symm
+  simpa [PCtx.cons] using (tail_betac Δ).of_tail_of_eq
+
+def rec {Γ : QCtx S} {motive : Ext Γ → Sort w}
+  (h : ∀ (A : PTerm S) (h : Nonempty (A :: [Γ]ᵣ ⊢ ⬝)), motive (mk A h)) (Δ : Ext Γ):
+    motive Δ := by
+  rw [eq_mk Δ]
+  apply h
+
+def sectionMk₀ (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) : hom₀ Γ.out Δ.obj.out where
+  seq := a :: id [Γ]ᵣ
+  is := ⟨by
+    rw [← head_cons_tail]
+    apply isMor.cons
+    apply isMor_betac₂ (wf _) Δ.tail_betac.symm Δ.tail_wf (id_isMor _ (wf _))
+    all_goals try rw [simulSubst_id_cons Δ.head_cons_wf]
+    apply (exists_of_cons' Δ.head_cons_wf).2
+    exact h
+    ⟩
+
+def sectionMk₁ (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) :
+    Γ ⟶ Δ.obj :=
+  ⟦Δ.sectionMk₀ a h⟧
+
+lemma sectionMk₁_comp {a : PTerm S} {h : [Γ]ᵣ ⊢ a : Δ.head} :
+    Δ.sectionMk₁ a h ≫ Δ.hom = 𝟙 _ := by
+  rw [← Quotient.out_equiv_out]
+  constructor
+  refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ (hom₀.mk_rep_betac _).symm
+  refine (pcomp_betac (hom₀.mk_rep_betac _) Δ.hom_betac).trans _ _ _ ?_
+  simp [sectionMk₀, QCtx.id₀]
+  rw [pcomp_id₀ (isTrunc.succ _ (isTrunc.zero _)) (by simp [id, id₀])]
+  exact PCtx.betac.refl _
+
+def SectionMk (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) :
+    Section Δ :=
+  Over.homMk (Δ.sectionMk₁ a h) Δ.sectionMk₁_comp
+
+variable {Δ} (a : Section Δ)
+
+lemma section_rep_not_nil : [a.left]ᵣ ≠ [] := by
+  apply List.ne_nil_of_length_eq_add_one
+  simpa [← a.left.is.length_eq] using Δ.gr'
+
+--- maybe not a good name
+def _root_.ContextualCategory.Section.head : PTerm S :=
+  [a.left]ᵣ.head (section_rep_not_nil a)
+
+def _root_.ContextualCategory.Section.tail : PCtx S :=
+  [a.left]ᵣ.tail
+
+lemma _root_.ContextualCategory.Section.head_cons_tail :
+    a.head :: a.tail = [a.left]ᵣ := by
+  simp [Section.head, Section.tail]
+
+def _root_.ContextualCategory.Section.simulSubst_tail_betac :
+    simulSubst Δ.head 0 a.tail ≃β Δ.head := by
+  sorry -- this should be easy
+
+def _root_.ContextualCategory.Section.isMor_head_cons_tail :
+    isMor [Γ]ᵣ (Δ.head :: Δ.tail) (a.head :: a.tail) := by
+  simpa [a.head_cons_tail, Δ.head_cons_tail] using a.left.is
+
+def _root_.ContextualCategory.Section.typing :
+    [Γ]ᵣ ⊢  a.head : Δ.head := by
+  apply typing.conv _ _ _ _ _ a.simulSubst_tail_betac
+    a.isMor_head_cons_tail.typing_of_cons
+    (Δ.head_cons_wf).typing_of_cons
+
+end Ext
 end QCtx
 
 end TermModel

@@ -12,12 +12,6 @@ noncomputable section
 
 universe u
 
-@[simp]
-def toWO (f : X ⟶ Y) : X ⟶ₒ Y where
-  hom := f
-  ord := by classical exact linearOrderOfSTO WellOrderingRel
-  isWellOrder := WellOrderingRel.isWellOrder
-
 variable (α : Cardinal.{u})
 
 def Uni : Universe SSet.{u} where

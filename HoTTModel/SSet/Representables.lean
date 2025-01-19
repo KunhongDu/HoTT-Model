@@ -117,7 +117,6 @@ variable {D : Type u₂} [Category.{v₂} D]
   [PreservesLimit X.functorToRepresentables.op G]
   [HasLimit (Y.functorToRepresentables.op ⋙ G)]
   [PreservesLimit Y.functorToRepresentables.op G]
-  [HasLimit ((CategoryOfElements.map f).op.op ⋙ X.functorToRepresentables.op ⋙ G)]
 
 def IsoOfPreservesLimit : G.obj (op Y) ≅ limit (Y.functorToRepresentables.op ⋙ G) :=
   -- change (G.mapCone (coconeOfRepresentable Y).op).pt ≅ (limit.cone _).pt
@@ -125,9 +124,20 @@ def IsoOfPreservesLimit : G.obj (op Y) ≅ limit (Y.functorToRepresentables.op �
     (PreservesLimit.preserves (colimitOfRepresentable _).op) (limit.isLimit (_ ⋙ G))
 
 variable {X Y}
+
+section
+
+def IsoOfPreservesLimit_comp
+  [HasLimit ((CategoryOfElements.map f).op.op ⋙ X.functorToRepresentables.op ⋙ G)] :
+    limit ((functorToRepresentables X).op ⋙ G) ⟶
+      limit ((functorToRepresentables Y).op ⋙ G) :=
+  limit.pre _ (CategoryOfElements.map f).op.op
+
+variable [HasLimit ((CategoryOfElements.map f).op.op ⋙ X.functorToRepresentables.op ⋙ G)]
+
 lemma IsoOfPreservesLimit_comp_hom :
     G.map (op f) ≫ (IsoOfPreservesLimit G Y).hom =
-      (IsoOfPreservesLimit G X).hom ≫ limit.pre _ (CategoryOfElements.map f).op.op := by
+      (IsoOfPreservesLimit G X).hom ≫ (IsoOfPreservesLimit_comp G f) := by
   dsimp [IsoOfPreservesLimit, IsLimit.conePointUniqueUpToIso]
   ext j; simp
   erw [limit.lift_π]; simp
@@ -140,6 +150,8 @@ lemma IsoOfPreservesLimit_comp_inv :
       limit.pre _ (CategoryOfElements.map f).op.op ≫ (IsoOfPreservesLimit G Y).inv:= by
   rw [Iso.inv_comp_eq, ← Category.assoc, Iso.eq_comp_inv]
   exact IsoOfPreservesLimit_comp_hom _ _
+
+end
 
 open Simplicial
 variable (n : ℕ) [HasLimit (Δ[n].functorToRepresentables.op ⋙ G)]

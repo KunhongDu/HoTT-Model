@@ -892,6 +892,10 @@ lemma UniSmallWO.universal (g : SmallWO α X) :
   . simp only [Ω.toObj_toHom]
   . apply UniSmallWO.Ω_obj_mk
 
+lemma UniSmallWO.weaklyUniversal (g : Y ⟶ X) (hg : SmallFibre α g) :
+    toSmallWO g hg ≈  (UniSmallWO α).pullback (Ω.toHom (Ω_obj.mk (toSmallWO g hg))):=
+  UniSmallWO.universal _
+
 -- `Υ` defined as subtype of `Ω`
 
 abbrev SmallWO.Kan (f : SmallWO α Y) : Prop := KanFibration f.hom
@@ -1179,6 +1183,12 @@ lemma UniSmallWOKan.universal (g : SmallWO α X) (hg : g.Kan) :
   rw [← Quotient.eq_iff_equiv]
   apply_fun equivShrink (Ω_obj₀ α _)
   exact congrArg Subtype.val (universal₀ g hg)
+
+lemma UniSmallWOKan.weaklyUniversal (g : Y ⟶ X) (hg : SmallFibre α g)
+  (hg' : KanFibration g) :
+    toSmallWO g hg ≈
+      (UniSmallWOKan α).pullback (Υ.toHom (Υ_obj.mk (toSmallWO g hg) hg')):=
+  UniSmallWOKan.universal _ _
 
 end
 end SSet
