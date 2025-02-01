@@ -1,5 +1,4 @@
 import HoTTModel.SimplicialModel.Universe
-import HoTTModel.SimplicialModel.Fibre
 import HoTTModel.LocallyCartesianClosed.Presheaf
 import HoTTModel.Chain
 
@@ -22,13 +21,24 @@ def Uni : Universe SSet.{u} where
 
 def Model : Type (u + 1) := Chains (Uni α) Δ[0]
 
+instance : KanFibration (Uni α).hom := UniSmallWOKan.Kan
+
+instance : KanFibration (Pi.gen₁_snd (Uni α)) :=
+  KanFibration.IsPullback_snd ((Uni α).isPullback _)
+
+instance : KanFibration (Pi.gen₂_snd (Uni α)) :=
+  KanFibration.IsPullback_snd ((Uni α).isPullback _)
+
+instance : KanFibration (Pi.gen₂_snd' (Uni α)).hom :=
+  inferInstanceAs (KanFibration (Pi.gen₂_snd (Uni α)))
+
 -- this follows from a general result
-instance : KanFibration (((Π(Pi.Gen₁.snd (Uni α))).obj (Pi.Gen₂.snd' (Uni α))).hom) := sorry
+instance : KanFibration (((Π(Pi.gen₁_snd (Uni α))).obj (Pi.gen₂_snd' (Uni α))).hom) := sorry
 
 variable [α.IsRegularClass] [α.Uncountable] [α.IsStrongLimitClass]
 
 def Pi.SmallWO : SmallWO α (Pi.obj (Uni α)) where
-  wo := toWO ((Π(Pi.Gen₁.snd (Uni α))).obj (Pi.Gen₂.snd' (Uni α))).hom
+  wo := toWO ((Π(Pi.gen₁_snd (Uni α))).obj (Pi.gen₂_snd' (Uni α))).hom
   small := by
     apply SmallFibre.stableUnderPushforward
     <;> apply SmallFibre.stableUnderPullback (UniSmallWOKan α).small ((Uni α).isPullback _)

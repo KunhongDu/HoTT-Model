@@ -146,8 +146,6 @@ section
 
 -- eq on `g` gives `heq`
 
-#where
-
 variable {g' : D ⟶ B} (eq : g = g')
 
 def adjEquiv_eqToHom_comp_isPullback :
@@ -160,9 +158,6 @@ lemma adjEquiv_eqToHom_comp (h : Over A) (j : Over.mk snd ⟶ h):
   rfl
 
 end
-
-
-
 
 end IsPullback
 end
@@ -430,36 +425,26 @@ lemma pushforward.trans_comp :
   have eq : (Σk').obj ((Σk).obj ((Πg).obj (Over.mk f))) =
     (Σk ≫ k').obj ((Πg).obj (Over.mk f)) := by
       rw [mapComp_eq]; rfl
-
   let is₁ := (IsPullback.of_hasPullback ((Πg).obj (Over.mk f)).hom g).paste_vert is.flip
-
   let is₂ := is₁.paste_vert is'.flip
-
   have eq : (((Πg).obj (Over.mk f)).hom ≫ k) ≫ k' = ((Πg).obj (Over.mk f)).hom ≫ k ≫ k' := by
     simp
-
   let is₂' := IsPullback.adjEquiv_eqToHom_comp_isPullback is₂ eq
-
   let is₂'' := (IsPullback.of_hasPullback ((Πg).obj (Over.mk f)).hom g).paste_vert
     (is.flip.paste_vert is'.flip)
-
   let l := is₂'.liftIsPullbackAlong' is₂'' (𝟙 _)
-
   have : l.left = 𝟙 _ := by
     apply is₂''.hom_ext
     <;> simp [l]
-
   simp only [trans]
   change ((Σk').map (trans₀ is comm)).left ≫ _ = _
   rw [← comp_left]
   congr 1
   rw [auxtest₁' _ _ is₁]
-
   let ev := (IsPullback.adjEquiv_ofHasPullback g ((Πg).obj (Over.mk f)).hom _).symm (𝟙 _)
   let evj' := (Σ(j ≫ j')).map ev
   let ev' := (IsPullback.adjEquiv_ofHasPullback g' ((Πg').obj (Over.mk f')).hom _).symm (𝟙 _)
   let i_ : Over.mk (f ≫ j ≫ j') ⟶ Over.mk (f' ≫ j') := Over.homMk i (by simp [comm.w_assoc])
-
   have aux : (Σj').map ((is₁.liftIsPullbackAlong'
     (IsPullback.of_hasPullback ((Πg').obj (Over.mk f')).hom g') (trans₀ is comm)) ≫ ev') =
       l ≫ evj' ≫ i_ := by
@@ -467,9 +452,7 @@ lemma pushforward.trans_comp :
     rw [Category.comp_id]
     ext
     simp [comp_left, this, trans₀]; rfl
-
   refine HEq.trans ((IsPullback.adjEquiv_eqToHom_comp is₂ eq) _ _) ?_
-
   simp_rw [aux, Category.assoc]
   rw [IsPullback.adjEquiv_naturality_left]
   simp

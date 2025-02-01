@@ -144,7 +144,7 @@ lemma of_pullback_snd_KanFibration_of_surjective {W X Y Z : SSet} {fst : W ⟶ X
     apply isIso_comp
   rw [← pullback.rightCompIso_hom_comp_snd]
   apply isIso_comp
-
+/-
 -- TODO : KanFib : to KanCpx
 
 -- TrivialKanFibration aka Acyclic ...
@@ -153,7 +153,6 @@ lemma of_pullback_snd_KanFibration_of_surjective {W X Y Z : SSet} {fst : W ⟶ X
 class TrivialKanFibration (p : X ⟶ Y) : Prop where
   lift : ∀ ⦃n : ℕ⦄ {f} {g} (D : CommSq f p (boundaryInclusion n) g), Nonempty D.LiftStruct
 
-#exit
 -- minimal fibration
 
 def ProdΔ0 : X ≅ prod X Δ[0] := prod_terminal_iso Δ0_is_terminal
@@ -189,3 +188,4 @@ class Cofibration (f : X ⟶ Y) : Prop :=
 
 end SSet
 end
+-/

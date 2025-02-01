@@ -695,32 +695,32 @@ variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] [HasBinaryProduct
 variable (S : Pi.Structure U) {Γ} (A : Γ.Ext) (B : A.obj.Ext)
 
 def form : Γ.Ext :=
-  Ext.mk' Γ (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom)
+  Ext.mk' Γ (form₀ A.isPullback B.isPullback ≫ S.hom)
 
 variable (b : Section B)
 
 def transfer :
     (ΠA.hom.hom).obj (Over.mk B.hom.hom) ≅ Over.mk (Ext.hom (form S A B)).hom :=
   IsPullback.isoIsPullback_snd_overMk
-    ((pushforward.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
-      (IsPullback.form₂.isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
-      (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom))
+    ((pushforward.isPullback (form₁_isPullback A.isPullback B.isPullback)
+      (form₂_isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
+      (Ext.mk'.isPullback (form₀ A.isPullback B.isPullback ≫ S.hom))
 
 lemma transfer_hom_left_eq_isoIsPullback :
   (transfer S A B).hom.left =
     (IsPullback.isoIsPullback _ _
-  ((pushforward.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
-    (IsPullback.form₂.isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
-    (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom))).hom := rfl
+  ((pushforward.isPullback (form₁_isPullback A.isPullback B.isPullback)
+    (form₂_isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
+    (Ext.mk'.isPullback (form₀ A.isPullback B.isPullback ≫ S.hom))).hom := rfl
 
 lemma transfer_hom_left :
   (transfer S A B).hom.left =
     IsPullback.liftIsPullbackAlong
-  ((pushforward.isPullback (IsPullback.form₁.isPullback A.isPullback B.isPullback)
-    (IsPullback.form₂.isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
-    (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom)) (𝟙 _) (by simp) := by
+  ((pushforward.isPullback (form₁_isPullback A.isPullback B.isPullback)
+    (form₂_isPullback A.isPullback B.isPullback)).paste_horiz S.isPullback)
+    (Ext.mk'.isPullback (form₀ A.isPullback B.isPullback ≫ S.hom)) (𝟙 _) (by simp) := by
   rw [transfer_hom_left_eq_isoIsPullback]
-  apply (Ext.mk'.isPullback (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom)).hom_ext
+  apply (Ext.mk'.isPullback (form₀ A.isPullback B.isPullback ≫ S.hom)).hom_ext
   <;> simp
 
 @[simp]
@@ -773,58 +773,59 @@ variable {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext)
 
 @[reassoc]
 lemma form_stable_form₀ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext) :
-    f.hom ≫ IsPullback.form₀ A.isPullback B.isPullback =
-      IsPullback.form₀ (Ext.isPullback (A.pullback f))
+    f.hom ≫ form₀ A.isPullback B.isPullback =
+      form₀ (Ext.isPullback (A.pullback f))
         (Ext.isPullback (B.pullback (A.pullbackFst f))) := by
   revert A; apply Ext.rec''
   intro g B
   -- lemma???
-  have aux : (f.hom ≫ IsPullback.form₀ (Ext.mk' Γ g).isPullback B.isPullback) ≫ Pi.hom U =
+  have aux : (f.hom ≫ form₀ (Ext.mk' Γ g).isPullback B.isPullback) ≫ Pi.hom U =
       Ext.gen Γ' (Ext.pullback (Ext.mk' Γ g) f) := by
     simp [Ext.gen, Ext.pullback, Ext.mk', cons', cons,
       ContextualCategory.pb, pb, cases_cons, pb_cons, Chain.tailHom]
-  apply IsPullback.form₀_ext₂ _ aux _
+  apply form₀_ext _ aux _
   revert B; apply Ext.rec''
   intro g' aux
   conv_rhs =>
     simp [Ext.gen, Ext.pullback, Ext.mk', cons', cons, ContextualCategory.pb,
       pb, cases_cons, pb_cons, Chain.tailHom]
-  change _ ≫ Gen₂.hom U = ((Ext.mk' Γ g).pullbackFst _).hom ≫ g'
+  change _ ≫ gen₂_hom U = ((Ext.mk' Γ g).pullbackFst _).hom ≫ g'
   set q : Over.mk (Ext.gen Γ' (Ext.pullback (Ext.mk' Γ g) f)) ⟶ op U :=
-    Over.homMk (f.hom ≫ IsPullback.form₀ (Ext.mk' Γ g).isPullback _) aux
+    Over.homMk (f.hom ≫ form₀ (Ext.mk' Γ g).isPullback _) aux
   have : Ext.gen (Ext.mk' Γ g).obj (Ext.mk' (Ext.mk' Γ g).obj g') = g' := by
     simp [Ext.gen, Ext.pullback, Ext.mk', cons', cons, Chain.tailHom]
-  rw [← this, ← Pi.IsPullback.form₁_comp_Gen₂hom (Ext.mk' Γ g).isPullback
-    (Ext.mk' _ g').isPullback, ← Category.assoc _ _ (Gen₂.hom U)]
+  rw [← this, ← Pi.form₁_comp_Gen₂hom (Ext.mk' Γ g).isPullback
+    (Ext.mk' _ g').isPullback, ← Category.assoc _ _ (gen₂_hom U)]
   congr 1
   apply (U.isPullback (Pi.hom U)).hom_ext
-  . simp; rw [Pi.IsPullback.form₁_comp_fst]
-    simp [Ext.gen, Ext.mk', Ext.pullback, Ext.fst, Ext.pullbackFst, ContextualCategory.pb,
+  . simp [Over.mk_left, IsPullback.liftIsPullbackAlong', Over.homMk_left,
+      IsPullback.liftIsPullbackAlong_snd, eqToHom_refl, Category.assoc, form₁_comp_fst,
+      Ext.gen, Ext.mk', Ext.pullback, Ext.fst, Ext.pullbackFst, ContextualCategory.pb,
       ContextualCategory.pb_fst, Chains.cons', Chains.cons, pb, pb_fst,
       cases_cons, pb_cons, pb_fst_cons, Chain.tailHom]
-  . simp [q]; rw [(Pi.IsPullback.form₁.isPullback _ _).w, ← comp_hom_assoc,  ← comp_hom_assoc,
+  . simp [q]; rw [← comp_hom_assoc,  ← comp_hom_assoc,
       ((Ext.mk' Γ g).pullbackIsPullback f).w]
 
 lemma form_stable_form₁ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext) :
-    (Ext.pullbackFst A f).hom ≫ IsPullback.form₁ A.isPullback B.isPullback =
-      IsPullback.form₁ (Ext.isPullback (A.pullback f))
+    (Ext.pullbackFst A f).hom ≫ form₁ A.isPullback B.isPullback =
+      form₁ (Ext.isPullback (A.pullback f))
         (Ext.isPullback (B.pullback (A.pullbackFst f))) := by
   apply (U.isPullback _).hom_ext
-  . rw [Category.assoc, IsPullback.form₁_comp_fst,
-      IsPullback.form₁_comp_fst, Ext.pullbackFst_comp_fst]
-  . rw [Category.assoc, (IsPullback.form₁.isPullback _ _ ).w,
-      (IsPullback.form₁.isPullback _ _ ).w, ← comp_hom_assoc,
+  . rw [Category.assoc, form₁_comp_fst,
+      form₁_comp_fst, Ext.pullbackFst_comp_fst]
+  . rw [Category.assoc, (form₁_isPullback _ _ ).w,
+      (form₁_isPullback _ _ ).w, ← comp_hom_assoc,
       (Ext.pullbackIsPullback _ _).w, comp_hom_assoc, form_stable_form₀]
 
 lemma form_stable_form₂ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext) :
-    (Ext.pullbackFst B (Ext.pullbackFst A f)).hom ≫ IsPullback.form₂ A.isPullback B.isPullback =
-      IsPullback.form₂ (Ext.isPullback (A.pullback f))
+    (Ext.pullbackFst B (Ext.pullbackFst A f)).hom ≫ form₂ A.isPullback B.isPullback =
+      form₂ (Ext.isPullback (A.pullback f))
         (Ext.isPullback (B.pullback (A.pullbackFst f))) := by
   apply (U.isPullback _).hom_ext
-  . rw [Category.assoc, IsPullback.form₂_comp_fst,
-      IsPullback.form₂_comp_fst, Ext.pullbackFst_comp_fst]
-  . rw [Category.assoc, (IsPullback.form₂.isPullback _ _ ).w,
-      (IsPullback.form₂.isPullback _ _ ).w, ← comp_hom_assoc,
+  . rw [Category.assoc, form₂_comp_fst,
+      form₂_comp_fst, Ext.pullbackFst_comp_fst]
+  . rw [Category.assoc, (form₂_isPullback _ _ ).w,
+      (form₂_isPullback _ _ ).w, ← comp_hom_assoc,
       (Ext.pullbackIsPullback _ _).w, comp_hom_assoc, form_stable_form₁]
 
 lemma form_stable {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) (A : Γ.Ext) (B : A.obj.Ext) :
@@ -870,23 +871,23 @@ lemma intro_stable_eq {S} {Γ Γ' : U.Chains t} {f : Γ' ⟶ Γ} {A : Ext Γ} {B
       (Over.mk (Ext.pullback (form S A B) f).hom).left := by
   symm; congr <;> apply form_stable
 
-lemma temp₁ :
+lemma eqToHom_comp_fst_pullback_form :
     eqToHom (congrArg dom intro_stable_eq) ≫ Ext.fst Γ' (Ext.pullback (form S A B) f)
-      = U.fst (IsPullback.form₀ (Ext.isPullback (A.pullback f))
+      = U.fst (form₀ (Ext.isPullback (A.pullback f))
       (Ext.isPullback (B.pullback (A.pullbackFst f))) ≫ S.hom) := by
   simp [Ext.fst, Ext.pullback, ContextualCategory.pb, pb, form, Ext.mk', pb_cons, Chain.tailHom]
   rw [eqToHom_comp_iff_heq, Category.comp_id, form_stable_form₀_assoc]
 
-lemma temp₂ :
-    Ext.fst Γ' (Ext.pullback (form S A B) f) =
-      (Ext.pullbackFst (form S A B) f).hom ≫ Ext.fst Γ (form S A B) := by
+lemma pullbackFst_form_hom_comp_fst_form :
+    (Ext.pullbackFst (form S A B) f).hom ≫ Ext.fst Γ (form S A B) =
+      Ext.fst Γ' (Ext.pullback (form S A B) f):= by
   simp [Ext.fst, Ext.pullback, Ext.pullbackFst, ContextualCategory.pb_fst, pb_fst,
     form, Ext.mk', pb_fst_cons, ContextualCategory.pb, pb, pb_cons]
   simp only [tailHom, ne_nil, cons, IsPullback.lift_fst]
 
-lemma temp₃ :
+lemma eqToHom_comp_pullback_form_hom :
     eqToHom (congrArg dom intro_stable_eq) ≫ (Ext.pullback (form S A B) f).hom.hom
-      = (Ext.mk' Γ' (IsPullback.form₀ (Ext.isPullback (A.pullback f))
+      = (Ext.mk' Γ' (form₀ (Ext.isPullback (A.pullback f))
       (Ext.isPullback (B.pullback (A.pullbackFst f))) ≫ S.hom)).hom.hom := by
   simp [Ext.hom, Ext.pullback, PreContextualCategory.proj, proj, ContextualCategory.pb, pb,
     form, Ext.mk', pb_cons, cons', Chain.proj, Chains.cons, cases_cons]
@@ -900,10 +901,10 @@ lemma intro_stable_aux₀ :
       (Ext.isPullbackLeft (form S A B) f)
       (transfer S A B).hom.left (Over.w (transfer S A B).hom) := by
   apply (Ext.isPullback _).hom_ext
-  . conv_rhs => rw [temp₂]
+  . conv_rhs => rw [← pullbackFst_form_hom_comp_fst_form]
     simp [transfer_hom_left]; rw [IsPullback.liftIsPullbackAlong_fst_assoc]
-    rw [temp₁, IsPullback.liftIsPullbackAlong_fst]
-    have : U.fst (IsPullback.form₀ A.isPullback B.isPullback ≫ S.hom) =
+    rw [eqToHom_comp_fst_pullback_form, IsPullback.liftIsPullbackAlong_fst]
+    have : U.fst (form₀ A.isPullback B.isPullback ≫ S.hom) =
       Ext.fst Γ (form S A B) := by
         simp [Ext.fst]; rfl
     rw [← this, IsPullback.liftIsPullbackAlong_fst]
@@ -913,7 +914,7 @@ lemma intro_stable_aux₀ :
     rw [form_stable_form₀]
     rw [form_stable_form₁]
     rw [form_stable_form₂]
-  . simp [transfer_hom_left, temp₃]
+  . simp [transfer_hom_left, eqToHom_comp_pullback_form_hom]
 
 lemma intro_stable_aux₂ {Γ Γ' : U.Chains t} (f : Γ' ⟶ Γ) {A : Ext Γ} (B : Ext A.obj) :
     (transfer S (Ext.pullback A f) (Ext.pullback B (Ext.pullbackFst A f))).hom.left ≫

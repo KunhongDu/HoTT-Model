@@ -1,6 +1,5 @@
-import HoTTModel.LocallyCartesianClosed.Basic
+import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
 import HoTTModel.Universe
-import Mathlib.CategoryTheory.Square
 
 noncomputable section
 
@@ -15,7 +14,7 @@ set_option linter.unusedSectionVars false
 
 section
 variable [HasFiniteWidePullbacks C] [LocallyCartesianClosed C] {X : C} (f : X ⟶ U.down)
-
+/-
 @[simp]
 def isoPullback :
     U.pt f ≅ pullback U.hom f :=
@@ -213,7 +212,7 @@ def pullbackSnd'_isoPullback_snd' :
   Over.isoMk (U.pullbackSnd'_isoPullback f g) (U.isPullbackComp f g).isoPullback_hom_snd
 
 end
-
+-/
 namespace Pi
 variable [HasBinaryProducts C] {t : C} (ht : IsTerminal t)
 
@@ -223,222 +222,244 @@ abbrev obj := (op U).left
 
 abbrev hom : obj U ⟶ U.down := (op U).hom
 
-abbrev Gen₁ : C := U.pt (hom U)
+abbrev gen₁ : C := U.pt (hom U)
 
-abbrev Gen₁.fst : Gen₁ U ⟶ U.up := U.fst (hom U)
+abbrev gen₁_fst : gen₁ U ⟶ U.up := U.fst (hom U)
 
-abbrev Gen₁.snd : Gen₁ U ⟶ obj U := U.snd (hom U)
+abbrev gen₁_snd : gen₁ U ⟶ obj U := U.snd (hom U)
 
-abbrev Gen₁.fst' : Over U.up := U.fst' (hom U)
+abbrev gen₁_fst' : Over U.up := U.fst' (hom U)
 
-abbrev Gen₁.snd' : Over (obj U) := U.snd' (hom U)
+abbrev gen₁_snd' : Over (obj U) := U.snd' (hom U)
 
-abbrev Gen₂.hom₀ : Gen₁.fst' U ⟶ U.proj₂' := (U.pullback_adj.counit).app U.proj₂'
+abbrev gen₂_hom₀ : gen₁_fst' U ⟶ U.proj₂' :=
+  (IsPullback.adjEquiv (U.isPullback (hom U)).flip _).symm (𝟙 _)
 
-lemma Gen₂.hom₀_comp_prod_snd :
-    (Gen₂.hom₀ U).left ≫ prod.snd = Gen₁.fst U :=
-  Over.w (Gen₂.hom₀ U)
+lemma gen₂_hom₀_comp_prod_snd :
+    (gen₂_hom₀ U).left ≫ prod.snd = gen₁_fst U :=
+  Over.w (gen₂_hom₀ U)
 
-abbrev Gen₂.hom : Gen₁ U ⟶ U.down := (Gen₂.hom₀ U).left ≫ U.proj₁
+abbrev gen₂_hom : gen₁ U ⟶ U.down := (gen₂_hom₀ U).left ≫ U.proj₁
 
-abbrev Gen₂.hom' : Over U.down := Over.mk (Gen₂.hom U)
+abbrev gen₂_hom' : Over U.down := Over.mk (gen₂_hom U)
 
-abbrev Gen₂ : C := U.pt (Gen₂.hom U)
+abbrev Gen₂ : C := U.pt (gen₂_hom U)
 
-abbrev Gen₂.fst : Gen₂ U ⟶ U.up := U.fst (Gen₂.hom U)
+abbrev gen₂_fst : Gen₂ U ⟶ U.up := U.fst (gen₂_hom U)
 
-abbrev Gen₂.snd : Gen₂ U ⟶ Gen₁ U := U.snd (Gen₂.hom U)
+abbrev gen₂_snd : Gen₂ U ⟶ gen₁ U := U.snd (gen₂_hom U)
 
-abbrev Gen₂.fst' : Over U.up := U.fst' (Gen₂.hom U)
+abbrev gen₂_fst' : Over U.up := U.fst' (gen₂_hom U)
 
-abbrev Gen₂.snd' : Over (Gen₁ U) := U.snd' (Gen₂.hom U)
+abbrev gen₂_snd' : Over (gen₁ U) := U.snd' (gen₂_hom U)
 
 structure Structure where
   hom : (op U).left ⟶ U.down
-  iso : (Π(Gen₁.snd U)).obj (Gen₂.snd' U) ≅ U.snd' hom
+  iso : (Π(gen₁_snd U)).obj (gen₂_snd' U) ≅ U.snd' hom
 
-abbrev Structure.fst (S : Structure U) : ((Π(Gen₁.snd U)).obj (Gen₂.snd' U)).left ⟶ U.up :=
+abbrev Structure.fst (S : Structure U) : ((Π(gen₁_snd U)).obj (gen₂_snd' U)).left ⟶ U.up :=
   S.iso.hom.left ≫ U.fst S.hom
 
 lemma Structure.isPullback (S : Structure U) :
-    IsPullback S.fst ((Π(Gen₁.snd U)).obj (Gen₂.snd' U)).hom U.hom S.hom := by
+    IsPullback S.fst ((Π(gen₁_snd U)).obj (gen₂_snd' U)).hom U.hom S.hom := by
   apply (U.isPullback S.hom).of_iso ((Over.forget _).mapIso S.iso.symm)
     (Iso.refl _) (Iso.refl _) (Iso.refl _)
   all_goals simp [fst]
   rw [← Over.comp_left_assoc, Iso.inv_hom_id, Over.id_left, Category.id_comp]
 
--- the iso means, we would later need to do pullback along `Gen₁.snd`
--- but since the `Gen₁.snd` is a pullback of the universe
+-- the iso means, we would later need to do pullback along `gen₁_snd`
+-- but since the `gen₁_snd` is a pullback of the universe
 -- we can choose the pullbacks as ones along compositions!!!!
 
 section
-
+/-
 variable {U} {Γ A : C} (δ : Γ ⟶ U.down) (δ' : U.pt δ ⟶ U.down)
 
 def form₀' : Over.mk δ ⟶ op U :=
-  U.pullback_adjEquiv (Over.mk δ) U.proj₂' (Over.homMk (prod.lift δ' (U.fst δ)))
+  IsPullback.adjEquiv (U.isPullback δ).flip _ (Over.homMk (prod.lift δ' (U.fst δ)))
 
 abbrev form₀ : Γ ⟶ obj U := (form₀' δ δ').left
 
 lemma form₀_comp_hom : form₀ δ δ' ≫ hom U = δ := by
   simp only [Over.w, Over.mk_hom]
 
-def form₁' : U.fst' δ ⟶ Gen₁.fst' U := U.pullback_map.map (form₀' δ δ')
+def form₁' : U.fst' δ ⟶ gen₁_fst' U := by
+  apply
 
-abbrev form₁ : U.pt δ ⟶ Gen₁ U := (form₁' δ δ').left
+abbrev form₁ : U.pt δ ⟶ gen₁ U := (form₁' δ δ').left
 
 lemma form₁'_comp_Gen₂hom₀ :
-    form₁' δ δ' ≫ Gen₂.hom₀ U = Over.homMk (prod.lift δ' (U.fst δ)) := by
+    form₁' δ δ' ≫ gen₂_hom₀ U = Over.homMk (prod.lift δ' (U.fst δ)) := by
   erw [← U.pullback_adj.homEquiv_counit]
   simp [form₀', Equiv.symm_apply_apply]
 
 @[reassoc]
 lemma form₁_comp_Gen₂hom₀_left :
-    form₁ δ δ' ≫ (Gen₂.hom₀ U).left = prod.lift δ' (U.fst δ) :=
+    form₁ δ δ' ≫ (gen₂_hom₀ U).left = prod.lift δ' (U.fst δ) :=
   congrArg CommaMorphism.left (form₁'_comp_Gen₂hom₀ δ δ')
 
 lemma form₁_comp_Gen₂hom :
-    form₁ δ δ' ≫ Gen₂.hom U = δ' := by
-  simp [Gen₂.hom, ← Category.assoc, form₁_comp_Gen₂hom₀_left]
+    form₁ δ δ' ≫ gen₂_hom U = δ' := by
+  simp [gen₂_hom, ← Category.assoc, form₁_comp_Gen₂hom₀_left]
 
 lemma form₁_comp_fst :
-    form₁ δ δ' ≫ Gen₁.fst U = U.fst δ := by
-  rw [← Gen₂.hom₀_comp_prod_snd, form₁_comp_Gen₂hom₀_left_assoc, prod.lift_snd]
+    form₁ δ δ' ≫ gen₁_fst U = U.fst δ := by
+  rw [← gen₂_hom₀_comp_prod_snd, form₁_comp_Gen₂hom₀_left_assoc, prod.lift_snd]
 
-abbrev form₁'' : Over.mk δ' ⟶ Gen₂.hom' U :=
+abbrev form₁'' : Over.mk δ' ⟶ gen₂_hom' U :=
   Over.homMk (form₁ δ δ') (form₁_comp_Gen₂hom _ _)
 
-def form₂' : U.fst' δ' ⟶ Gen₂.fst' U := U.pullback_map.map (form₁'' δ δ')
+def form₂' : U.fst' δ' ⟶ gen₂_fst' U := U.pullback_map.map (form₁'' δ δ')
 
 abbrev form₂ : U.pt δ' ⟶ Gen₂ U := (form₂' δ δ').left
 
 lemma form₂_comp_fst :
-    form₂ δ δ' ≫ U.fst (Gen₂.hom U) = U.fst δ' :=
+    form₂ δ δ' ≫ U.fst (gen₂_hom U) = U.fst δ' :=
   pullback_map.map_fst _ _
 
 def form₁.isPullback :
-    IsPullback (form₁ δ δ') (U.snd δ) (Gen₁.snd U) (form₀ δ δ') :=
+    IsPullback (form₁ δ δ') (U.snd δ) (gen₁_snd U) (form₀ δ δ') :=
   pullback_map.upperSquareIsPullback _ (form₀' δ δ')
 
 def form₂.isPullback :
-    IsPullback (form₂ δ δ') (U.snd δ') (Gen₂.snd U) (form₁ δ δ') :=
+    IsPullback (form₂ δ δ') (U.snd δ') (gen₂_snd U) (form₁ δ δ') :=
   pullback_map.upperSquareIsPullback _ (form₁'' δ δ')
 
 lemma form₀'_ext₁ (f : Over.mk δ ⟶ op U)
-  (hf : (U.pullback_map.map f).left ≫ Gen₂.hom U = δ') :
+  (hf : (U.pullback_map.map f).left ≫ gen₂_hom U = δ') :
     f = form₀' δ δ' := by
   simp [form₀']
   apply_fun (U.pullback_adjEquiv _ _).symm
   rw [U.pullback_adj.homEquiv_counit]
   ext; apply Limits.prod.hom_ext
   . simp [← hf]
-  . have : (U.pullback_map.map f).left ≫ (Gen₂.hom₀ U).left ≫ prod.snd = U.fst δ := by
-      simp only [pullback_map.map_left_eq_lift, Gen₂.hom₀_comp_prod_snd,
+  . have : (U.pullback_map.map f).left ≫ (gen₂_hom₀ U).left ≫ prod.snd = U.fst δ := by
+      simp only [pullback_map.map_left_eq_lift, gen₂_hom₀_comp_prod_snd,
         Over.mk_hom, IsPullback.lift_fst]
     simp; conv_rhs => rw [← this]
     simp
 
 end
-
-section
+-/
 
 variable {U} {Γ A B : C} {δ : Γ ⟶ U.down} {γ : A ⟶ U.up} {π : A ⟶ Γ}
   {δ' : A ⟶ U.down} {γ' : B ⟶ U.up} {π' : B ⟶ A}
   (is : IsPullback γ π U.hom δ) (is' : IsPullback γ' π' U.hom δ')
 
-namespace IsPullback
-
+/-
 def pullbackAux : IsPullback γ' (π' ≫ (U.isoIsPullback is).hom) U.hom
   ((U.isoIsPullback is).inv ≫ δ') := by
   apply is'.of_iso (Iso.refl _) (Iso.refl _) (U.isoIsPullback is) (Iso.refl _)
   <;> simp
-
+-/
 def form₀' (_ : IsPullback γ' π' U.hom δ') : Over.mk δ ⟶ op U :=
-  Pi.form₀' δ ((U.isoIsPullback is).inv ≫ δ')
+  IsPullback.adjEquiv is.flip _ (Over.homMk (prod.lift δ' γ))
 
 abbrev form₀ : Γ ⟶ obj U := (form₀' is is').left
 
 lemma form₀_comp_hom : form₀ is is' ≫ hom U = δ := by
   simp only [Over.w, Over.mk_hom]
 
-def form₁' (_ : IsPullback γ' π' U.hom δ') : Over.mk γ ⟶ Gen₁.fst' U :=
-  (U.isoOverFst is).hom ≫ Pi.form₁' δ ((U.isoIsPullback is).inv ≫ δ')
+def form₁' : Over.mk γ ⟶ gen₁_fst' U :=
+  is.flip.liftIsPullbackAlong' (U.isPullback (hom U)).flip (form₀' is is')
 
-abbrev form₁ : A ⟶ Gen₁ U := (form₁' is is').left
+abbrev form₁ : A ⟶ gen₁ U := (form₁' is is').left
 
-def form₂' : Over.mk γ' ⟶ Gen₂.fst' U :=
-  (U.isoOverFst (pullbackAux is is')).hom ≫ Pi.form₂' δ ((U.isoIsPullback is).inv ≫ δ')
+lemma form₁'_comp_gen₂hom₀ :
+    form₁' is is' ≫ gen₂_hom₀ U = Over.homMk (prod.lift δ' γ) := by
+  simp only [form₁', gen₂_hom₀]
+  rw [IsPullback.adjEquiv_naturality_symm_left, Category.comp_id]
+  simp [form₀', Equiv.symm_apply_apply]
+
+@[simp, reassoc]
+lemma form₁_comp_gen₂hom₀_left :
+    form₁ is is' ≫ (gen₂_hom₀ U).left = prod.lift δ' γ :=
+  congrArg CommaMorphism.left (form₁'_comp_gen₂hom₀ is is')
+
+@[simp]
+lemma form₁_comp_Gen₂hom :
+    form₁ is is' ≫ gen₂_hom U = δ' := by
+  simp [gen₂_hom, ← Category.assoc, form₁_comp_gen₂hom₀_left]
+
+@[simp]
+lemma form₁_comp_fst :
+    form₁ is is' ≫ gen₁_fst U = γ := by
+  rw [← gen₂_hom₀_comp_prod_snd, form₁_comp_gen₂hom₀_left_assoc, prod.lift_snd]
+
+@[simp]
+lemma form₁_comp_snd :
+    form₁ is is' ≫ gen₁_snd U = π ≫ form₀ is is' := by
+  simp [form₁, form₁']
+
+def form₁'' : Over.mk δ' ⟶ Over.mk (gen₂_hom U) :=
+  Over.homMk (form₁ is is') (form₁_comp_Gen₂hom is is')
+
+def form₂' : Over.mk γ' ⟶ gen₂_fst' U :=
+  is'.flip.liftIsPullbackAlong' (U.isPullback (gen₂_hom U)).flip (form₁'' is is')
 
 abbrev form₂ : B ⟶ Gen₂ U := (form₂' is is').left
 
-lemma form₁'_comp_Gen₂hom₀ :
-    form₁' is is' ≫ Gen₂.hom₀ U = Over.homMk (prod.lift δ' γ) := by
-  ext; simp [form₁', Pi.form₁'_comp_Gen₂hom₀]
-
-@[reassoc]
-lemma form₁_comp_Gen₂hom₀_left :
-    form₁ is is' ≫ (Gen₂.hom₀ U).left = prod.lift δ' γ :=
-  congrArg CommaMorphism.left (form₁'_comp_Gen₂hom₀ is is')
-
-lemma form₁_comp_Gen₂hom :
-    form₁ is is' ≫ Gen₂.hom U = δ' := by
-  simp [Gen₂.hom, ← Category.assoc, form₁_comp_Gen₂hom₀_left]
-
-lemma form₁_comp_fst :
-    form₁ is is' ≫ Gen₁.fst U = γ := by
-  rw [← Gen₂.hom₀_comp_prod_snd, form₁_comp_Gen₂hom₀_left_assoc, prod.lift_snd]
-
+@[simp]
 lemma form₂_comp_fst :
-    form₂ is is' ≫ U.fst (Gen₂.hom U) = γ' := by
+    form₂ is is' ≫ gen₂_fst U = γ' := by
   simp [form₂, form₂', Pi.form₂_comp_fst]
 
-def form₁.isPullback :
-    IsPullback (form₁ is is') π (Gen₁.snd U) (form₀ is is') := by
-  apply (Pi.form₁.isPullback δ ((U.isoIsPullback is).inv ≫ δ')).of_iso
-    (U.isoIsPullback is).symm (Iso.refl _) (Iso.refl _) (Iso.refl _)
-  <;> simp [form₁', form₁]
-  rfl
+@[simp]
+lemma form₂_comp_snd :
+    form₂ is is' ≫ gen₂_snd U = π' ≫ form₁ is is' := by
+  simp [form₂, form₂', form₁'']
 
-def form₂.isPullback :
-    IsPullback (form₂ is is') π' (Gen₂.snd U) (form₁ is is') := by
-  apply (Pi.form₂.isPullback δ ((U.isoIsPullback is).inv ≫ δ')).of_iso
-    (U.isoIsPullback (pullbackAux is is')).symm (Iso.refl _)  (U.isoIsPullback is).symm (Iso.refl _)
-  <;> simp [form₂', form₂, form₁', form₁]
-  . rw [Iso.eq_inv_comp, ← Category.assoc, Iso.comp_inv_eq,
-        IsPullback.isoIsPullback_hom_snd]
+def form₁_isPullback :
+    IsPullback (form₁ is is') π (gen₁_snd U) (form₀ is is') := by
+  apply IsPullback.of_right _ (form₁_comp_snd is is') (U.isPullback (hom U))
+  simpa using is
+
+def form₂_isPullback :
+    IsPullback (form₂ is is') π' (gen₂_snd U) (form₁ is is') := by
+  apply IsPullback.of_right _ (form₂_comp_snd is is') (U.isPullback (gen₂_hom U))
+  simpa using is'
 
 variable {is is'}
-
+/-
 lemma form₀'_ext₁ (f : Over.mk δ ⟶ op U)
-  (hf : (U.isoIsPullback is).hom ≫ (U.pullback_map.map f).left ≫ Gen₂.hom U = δ'):
+  (hf : (U.isoIsPullback is).hom ≫ (U.pullback_map.map f).left ≫ gen₂_hom U = δ'):
     f = form₀' is is' := by
   apply Pi.form₀'_ext₁
   simp only [prod.lift_fst, ← hf, Iso.inv_hom_id_assoc, Category.assoc]
+-/
 
-lemma form₀'_ext₂ (f : Over.mk δ ⟶ op U)
-  (hf : (is.flip.liftIsPullbackAlong' (U.isPullback (hom U)).flip f).left ≫ Gen₂.hom U = δ') :
+lemma form₀'_ext (f : Over.mk δ ⟶ op U)
+  (hf : (is.flip.liftIsPullbackAlong' (U.isPullback (hom U)).flip f).left ≫ gen₂_hom U = δ') :
     f = form₀' is is' := by
-  apply form₀'_ext₁
-  rw [← Category.assoc]
-  convert hf using 2
-  apply (U.isPullback (hom U)).flip.hom_ext
-  <;> simp
+  simp [form₀']
+  apply_fun (IsPullback.adjEquiv is.flip U.proj₂').symm
+  rw [Equiv.symm_apply_apply, ← Category.comp_id f,
+      ← IsPullback.adjEquiv_naturality_symm_left (U.isPullback _).flip]
+  ext; apply Limits.prod.hom_ext
+  . simpa using hf
+  . /-have : (U.pullback_map.map f).left ≫ (gen₂_hom₀ U).left ≫ prod.snd = U.fst δ := by
+      simp only [pullback_map.map_left_eq_lift, gen₂_hom₀_comp_prod_snd,
+        Over.mk_hom, IsPullback.lift_fst]
+    simp; conv_rhs => rw [← this]
+    simp-/
+    simp; erw [gen₂_hom₀_comp_prod_snd, IsPullback.liftIsPullbackAlong_snd]
 
+/-
 lemma form₀_ext₁ (f : Γ ⟶ obj U)
   (hf₁ : f ≫ hom U = δ) (hf₂ : (U.isoIsPullback is).hom ≫
-    (U.pullback_map.map (Over.homMk f hf₁ : Over.mk δ ⟶ op U)).left ≫ Gen₂.hom U = δ') :
+    (U.pullback_map.map (Over.homMk f hf₁ : Over.mk δ ⟶ op U)).left ≫ gen₂_hom U = δ') :
     f = form₀ is is' := by
   change (Over.homMk f hf₁ : Over.mk δ ⟶ op U).left = (form₀' is is').left
   rw [form₀'_ext₁ _ hf₂]
+-/
 
-lemma form₀_ext₂ (f : Γ ⟶ obj U)
+lemma form₀_ext (f : Γ ⟶ obj U)
   (hf₁ : f ≫ hom U = δ) (hf₂ : (is.flip.liftIsPullbackAlong' (U.isPullback (hom U)).flip
-    (Over.homMk f hf₁ : Over.mk δ ⟶ op U)).left ≫ Gen₂.hom U = δ') :
+    (Over.homMk f hf₁ : Over.mk δ ⟶ op U)).left ≫ gen₂_hom U = δ') :
     f = form₀ is is' := by
   change (Over.homMk f hf₁ : Over.mk δ ⟶ op U).left = (form₀' is is').left
-  rw [form₀'_ext₂ _ hf₂]
+  rw [form₀'_ext _ hf₂]
 
-end IsPullback
 end
 end Pi
 end
