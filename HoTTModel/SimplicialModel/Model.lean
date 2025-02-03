@@ -1,6 +1,6 @@
 import HoTTModel.SimplicialModel.Universe
 import HoTTModel.LocallyCartesianClosed.Presheaf
-import HoTTModel.Chain
+import HoTTModel.ContextualCategory.Chain
 
 -- define a universe
 

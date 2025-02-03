@@ -1,5 +1,5 @@
 import HoTTModel.DTT.PTS
-import HoTTModel.Contextual
+import HoTTModel.ContextualCategory.Contextual
 
 namespace PureTypeSystem
 

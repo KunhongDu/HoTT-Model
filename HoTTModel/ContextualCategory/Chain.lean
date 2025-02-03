@@ -1,5 +1,5 @@
-import HoTTModel.TypeStructures
-import HoTTModel.Contextual
+import HoTTModel.ContextualCategory.TypeStructures
+import HoTTModel.ContextualCategory.Contextual
 import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
 import HoTTModel.Lemmas.HEq
 

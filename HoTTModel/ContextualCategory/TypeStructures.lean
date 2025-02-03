@@ -1,5 +1,5 @@
 import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
-import HoTTModel.Universe
+import HoTTModel.ContextualCategory.Universe
 
 noncomputable section
 
