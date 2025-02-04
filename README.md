@@ -30,6 +30,7 @@ This repository aims to formalize [the simplicial model of HoTT](https://arxiv.o
 
 2. Property
 - The universe given by $\tilde U_\alpha \to U_\alpha$ has the logical structures
+- [x] Proved $\Pi$-type
 - The contextual category satisfies univalence
 
 ### Locally cartesian closedness
