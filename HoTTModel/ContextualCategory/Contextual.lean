@@ -107,8 +107,6 @@ noncomputable def Diag (b : Ext a) :
   (b.pullbackIsPullback b.hom).lift (𝟙 _) (𝟙 _) (by simp only [Category.id_comp])
 
 abbrev Section {a : α} (b : Ext a) := Over.mk (𝟙 a) ⟶ Over.mk b.hom
-  /-hom : a ⟶ b.obj
-  is_section : map ≫ b.hom = 𝟙 a-/
 
 noncomputable def Section.lift {b : Ext a} (f : c ⟶ a) (s : Section b) :
     Section (b.pullback f) :=
@@ -122,14 +120,6 @@ def Section.ofEq {a : α} {b b' : Ext a} (s : Section b) (h : b = b') :
     Section b' := by
   refine Over.homMk (s.left ≫ eqToHom (Ext.congrObj h)) ?_
   cases h; simpa using s.w
-
-/-
-def Ext.PasteIsPullback {a : α} {b : Ext a} {c : Ext b.obj} {f : a' ⟶ a} :
-  IsPullback (c.pullbackFst (b.pullbackFst f))
-    ((c.pullback (b.pullbackFst f)).hom ≫ (b.pullback f).hom)
-    (c.hom ≫ b.hom) f :=
-  IsPullback.paste_vert (c.pullbackIsPullback _) (b.pullbackIsPullback _)
--/
 
 structure Pi_type (α : Type u) [ContextualCategory α] where
   form {Γ : α} (A : Ext Γ) (B : Ext A.obj) : Ext Γ
@@ -156,7 +146,6 @@ structure Sigma_type (α : Type u) [ContextualCategory α] where
     (d : Over.mk (intro B).left ⟶ Over.mk C.hom) : Section C
   elim_comm  {Γ : α} {A : Ext Γ} {B : Ext A.obj} (C : Ext (form B).obj)
     (d : Over.mk (intro B).left ⟶ Over.mk C.hom) : (intro B).left ≫ (elim_tm C d).left = d.left
-
 
 structure Id_type (α : Type u) [ContextualCategory α] where
   form {Γ : α} (A : Ext Γ) : Ext (Ext.pullback A A.hom).obj

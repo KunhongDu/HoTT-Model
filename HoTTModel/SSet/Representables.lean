@@ -1,62 +1,6 @@
 import Mathlib.CategoryTheory.Limits.Presheaf
 import HoTTModel.SSet.Lemmas
 
-/-
-namespace CategoryTheory
-
-open CategoryTheory Limits Opposite
-
-noncomputable section
-
-namespace Presheaf
-open Limits Opposite
-universe u v
-variable {C : Type u₁} [Category.{v₁} C] {D : Type u₂} [Category.{v₂} D]
-  (G : (Cᵒᵖ ⥤ Type v₁)ᵒᵖ ⥤ D) (Y Z : Cᵒᵖ ⥤ Type v₁) (f : Z ⟶ Y)
-  [HasLimit ((functorToRepresentables Y).op ⋙ G)]
-  [PreservesLimit (functorToRepresentables Y).op G]
-  [HasLimit ((functorToRepresentables Z).op ⋙ G)]
-  [PreservesLimit (functorToRepresentables Z).op G]
-  [HasLimit ((CategoryOfElements.map f).op.op ⋙ (functorToRepresentables Y).op ⋙ G)]
-
-def IsoOfPreservesLimit : G.obj (op Y) ≅ limit ((functorToRepresentables Y).op ⋙ G) :=
-  -- change (G.mapCone (coconeOfRepresentable Y).op).pt ≅ (limit.cone _).pt
-  IsLimit.conePointUniqueUpToIso
-    (PreservesLimit.preserves (colimitOfRepresentable _).op) (limit.isLimit (_ ⋙ G))
-
-example : (CategoryOfElements.map f).op.op ⋙ (functorToRepresentables Y).op ⋙ G =
-  (functorToRepresentables Z).op ⋙ G := rfl
-
-example : (CategoryOfElements.map f).op ⋙ (functorToRepresentables Y) =
-  (functorToRepresentables Z) := rfl
-  -- all due to this... ha???
-
-example (F G H : C ⥤ C) : F ⋙ G ⋙ H = (F ⋙ G) ⋙ H := rfl
-
-variable {Y Z}
-lemma IsoOfPreservesLimit_comp_hom :
-    G.map (op f) ≫ (IsoOfPreservesLimit G Z).hom =
-      (IsoOfPreservesLimit G Y).hom ≫ limit.pre _ (CategoryOfElements.map f).op.op := by
-  dsimp [IsoOfPreservesLimit, IsLimit.conePointUniqueUpToIso]
-  ext j; simp
-  erw [limit.lift_π]; simp
-  erw [← G.map_comp, ← op_comp]
-  congr; ext c a; simp
-  erw [yonedaEquiv_symm_app_apply, yonedaEquiv_symm_app_apply]
-  change (Z.map (op a) ≫ f.app c) _ = (f.app _ ≫ Y.map (op a)) _
-  rw [f.naturality]
-
-lemma IsoOfPreservesLimit_comp_inv :
-    (IsoOfPreservesLimit G Y).inv ≫ G.map (op f) =
-      limit.pre _ (CategoryOfElements.map f).op.op ≫ (IsoOfPreservesLimit G Z).inv:= by
-  rw [Iso.inv_comp_eq, ← Category.assoc, Iso.eq_comp_inv]
-  exact IsoOfPreservesLimit_comp_hom _ _
-
-end Presheaf
-
-end
-end CategoryTheory-/
-
 noncomputable section Representables
 
 namespace SSet

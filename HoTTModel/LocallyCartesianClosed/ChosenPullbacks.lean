@@ -100,47 +100,6 @@ lemma adjEquiv_naturality_symm_left' :
     <;> simp
 
 end
-/-
-section
-
--- eqToHom
-
-variable {i : Over A} (eq : Over.mk snd = i)
-
-def adjEquiv_eqToHom_comp_isPullback :
-  IsPullback (eqToHom (congrArg Comma.left eq).symm ≫ fst) i.hom g f  := by
-  cases eq; simpa using is
-
-variable (h : Over A) (j : i ⟶ h)
-
-lemma adjEquiv_eqToHom_comp  :
-  adjEquiv is h (eqToHom eq ≫ j) =
-    adjEquiv (adjEquiv_eqToHom_comp_isPullback is eq) h j := by
-  cases eq
-  congr 3
-  <;> simp
-
-end
-
-section
-
-variable {i : Over B} (eq : Over.mk g = i)
-
-def adjEquiv_symm_eqToHom_comp_isPullback :
-  IsPullback (fst ≫ eqToHom (congrArg Comma.left eq)) snd i.hom f  := by
-  cases eq; simpa using is
-
-variable (h : Over A) (j : i ⟶ (Πf).obj h)
-
-lemma adjEquiv_symm_eqToHom_comp  :
-  (adjEquiv is h).symm (eqToHom eq ≫ j) =
-    (adjEquiv (adjEquiv_symm_eqToHom_comp_isPullback is eq) h).symm j := by
-  cases eq
-  congr 3
-  <;> simp
-
-end
--/
 
 section
 
@@ -187,12 +146,6 @@ variable {α : Type u} [CategoryTheory.Category.{v, u} α]
   {k : C ⟶ C'} {j : B ⟶ B'} {i : A ⟶ A'}
   (is : IsPullback j g g' k) (comm : CommSq i f f' j)
 
-/-
-def pushforward.isPullbackPaste {E : α} (h : E ⟶ C) :
-    IsPullback (pullback.fst h g) (pullback.snd h g ≫ j) (h ≫ k) g' :=
-  IsPullback.paste_vert (IsPullback.of_hasPullback _ _) is.flip
--/
-
 def pushforward.trans₀ :
     (Σk).obj ((Πg).obj (Over.mk f)) ⟶ (Πg').obj (Over.mk f') := by
   refine IsPullback.adjEquiv
@@ -206,15 +159,9 @@ abbrev pushforward.trans :
     ((Πg).obj (Over.mk f)).left ⟶ ((Πg').obj (Over.mk f')).left :=
   (pushforward.trans₀ is comm).left
 
-/-
-lemma pushforward.isPullback_lift_aux {E : α} (k : E ⟶ ((Πg').obj (Over.mk f')).left) (k' : E ⟶ C) :
-  k ≫ ((Πg').obj (Over.mk f')).hom = k' ≫ h ↔
-    (IsPullback.adjEquiv (isPullbackAux is' k') (Over.mk k'))
--/
-
 variable {E : Over C} {q : E ⟶ ((Πg).obj (Over.mk f))}
 
-lemma pushforward.auxtest₁ :
+lemma pushforward.comp_trans₀ :
   (Σk).map q ≫ pushforward.trans₀ is comm = IsPullback.adjEquiv
     ((IsPullback.of_hasPullback E.hom g).paste_vert is.flip) _
     ((Σj).map (((g*).map q) ≫
@@ -231,7 +178,7 @@ lemma pushforward.auxtest₁ :
   apply is₁.hom_ext
   <;> simp
 
-lemma pushforward.auxtest₁' {F : α} {l : F ⟶ E.left} {m : F ⟶ B}
+lemma pushforward.comp_trans₀' {F : α} {l : F ⟶ E.left} {m : F ⟶ B}
   (is' : IsPullback l m E.hom g) :
   (Σk).map q ≫ pushforward.trans₀ is comm = IsPullback.adjEquiv (is'.paste_vert is.flip) _
       ((Σj).map ((is'.liftIsPullbackAlong'
@@ -273,7 +220,7 @@ lemma pushforward.isPullbackLift_fst :
   let t' : Over.mk (t.snd ≫ k) ⟶ ((Πg').obj (Over.mk f')) := Over.homMk t.fst t.condition
   let lift := (Σk).map (isPullbackLift₀ is is' t)
   change lift.left ≫ _ =  t'.left
-  rw [← comp_left, pushforward.auxtest₁]; congr
+  rw [← comp_left, pushforward.comp_trans₀]; congr
   apply_fun (IsPullback.adjEquiv
     (IsPullback.paste_vert (IsPullback.of_hasPullback _ g) is.flip) (Over.mk f')).symm
   rw [Equiv.symm_apply_apply]
@@ -421,7 +368,6 @@ variable {A'' B'' C'' : α} {f'' : A'' ⟶ B''} {g'' : B'' ⟶ C''}
 lemma pushforward.trans_comp :
     pushforward.trans is comm ≫ pushforward.trans is' comm' =
       pushforward.trans (is.paste_horiz is') (comm.horiz_comp comm') := by
-
   have eq : (Σk').obj ((Σk).obj ((Πg).obj (Over.mk f))) =
     (Σk ≫ k').obj ((Πg).obj (Over.mk f)) := by
       rw [mapComp_eq]; rfl
@@ -440,7 +386,7 @@ lemma pushforward.trans_comp :
   change ((Σk').map (trans₀ is comm)).left ≫ _ = _
   rw [← comp_left]
   congr 1
-  rw [auxtest₁' _ _ is₁]
+  rw [comp_trans₀' _ _ is₁]
   let ev := (IsPullback.adjEquiv_ofHasPullback g ((Πg).obj (Over.mk f)).hom _).symm (𝟙 _)
   let evj' := (Σ(j ≫ j')).map ev
   let ev' := (IsPullback.adjEquiv_ofHasPullback g' ((Πg').obj (Over.mk f')).hom _).symm (𝟙 _)

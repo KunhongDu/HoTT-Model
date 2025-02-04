@@ -385,7 +385,7 @@ def cases_cons_prop {motive : (Γ : QCtx S) → [NR Γ] → Prop}
 def simulSubst_cons_wf {Δ : QCtx S} {Γ : PCtx S} {A : PTerm S}
   {h : Nonempty (A :: Γ ⊢ ⬝)} (f : Δ ⟶ ft ⟦Γ.cons A h⟧) :
     simulSubst A 0 [f]ᵣ :: [Δ]ᵣ ⊢ ⬝ := by
-  apply simulSubst_wf _ ((isMor'_isMor f.is).append A)
+  apply simulSubst_wf _ ((isMor'_of_isMor f.is).append A)
   simp; rw [← List.cons_append]
   apply append_wf Δ.wf
     (ctx_betac_wf_cons (choice h) (wf _) (ft_mk_cons_rep_betac _ _ _).symm)
@@ -575,7 +575,7 @@ def simulSubst_tail_betac :
   refine ((tail_fst_betac _).trans _ _ _ (condition_betac s)).simulSubst.trans _ _ _ ?_
   rw [simulSubst_pcomp _ s.snd.is f.is (isTrunc.zero _)]
   apply betac.refl _
-  apply lift_inv_of_typing''
+  apply lift_inv_of_cons_wf
     ((ctx_betac_wf_cons (choice h) (wf _) (ft_mk_cons_rep_betac _ _ _).symm))
 
 def append_pt_typing_sort :
@@ -587,7 +587,7 @@ def append_pt_typing_sort :
 def lift₀ : hom₀ s.pt.out (Δ.pb_cons Γ A h f).out where
   seq := head s.fst :: [s.snd]ᵣ
   is := ⟨by
-    have := simulSubst_typing (append_pt_typing_sort s).2 (isMor'_isMor s.snd.is)
+    have := simulSubst_typing (append_pt_typing_sort s).2 (isMor'_of_isMor s.snd.is)
     simp at this
     apply isMor_betac₂ (wf _) (pb_cons_rep_betac f).symm (wf _)
     apply isMor.cons s.snd.is
@@ -731,7 +731,7 @@ lemma pullback_comp_obj_cons (Δ Θ : QCtx S) (Γ : PCtx S) (A : PTerm S)
   apply Quotient.sound
   constructor
   apply betac.of_head_of_eq
-  rw [← simulSubst_pcomp (lift_inv_of_typing'' (choice h)) (hom.is _) _ (isTrunc.zero _)]
+  rw [← simulSubst_pcomp (lift_inv_of_cons_wf (choice h)) (hom.is _) _ (isTrunc.zero _)]
   apply PCtx.betac.simulSubst
   refine (hom₀.mk_rep_betac _).trans _ _ _ ?_
   simp [comp₀]
@@ -804,134 +804,3 @@ lemma pb_fst_eq {Γ Δ : QCtx S} [NR Γ] (f : Δ ⟶ Γ.ft) :
     ContextualCategory.pb_fst f = pb_fst f := rfl
 
 end Contextual
-/-
-open ContextualCategory
-
-abbrev Ext (Γ : QCtx S) : Type _ := ContextualCategory.Ext Γ
-
-namespace Ext
-
-variable {Γ : QCtx S} (Δ : Ext Γ)
-
-def mk (A : PTerm S) (h : Nonempty (A :: [Γ]ᵣ ⊢ ⬝)) :
-    Ext Γ where
-  obj := ⟦([Γ]ᵣ).cons A h⟧
-  ft' := by simp only [ft_eq, ft_cons_eq]
-  gr' := by
-    simp [(Ctx.mk_rep_betac _).length_eq, PCtx.cons]
-
-lemma rep_not_nil : [Δ.obj]ᵣ ≠ [] :=
-  List.ne_nil_of_length_eq_add_one Δ.gr'
-
-lemma length_eq_add_one : [Δ.obj]ᵣ.length = [Γ]ᵣ.length + 1 :=
-  Δ.gr'
-
-def head : PTerm S := [Δ.obj]ᵣ.head Δ.rep_not_nil
-
-def tail : PCtx S := [Δ.obj]ᵣ.tail
-
-lemma head_cons_tail : Δ.head :: Δ.tail = [Δ.obj]ᵣ := by
-  simp [head, tail]
-
-def tail_wf : Δ.tail ⊢ ⬝ := by
-  apply wf_of_cons (A := Δ.head)
-  rw [head_cons_tail]
-  apply wf
-
-def tail_betac : Δ.tail ≃β [Γ]ᵣ := by
-  convert (ft_rep_betac_rep_tail _).symm
-  exact Δ.ft'.symm
-
-def head_cons_wf : (Δ.head :: [Γ]ᵣ) ⊢ ⬝ := by
-  apply ctx_betac_wf_cons (Γ := Δ.tail) _ (wf _) Δ.tail_betac
-  rw [head_cons_tail]; apply wf
-
-def hom_betac : [Δ.hom]ᵣ ≃β id₀ 1 [Γ]ᵣ := by
-  let r : [Δ.hom]ᵣ ≃β [proj Δ.obj]ᵣ := by
-    apply betac_of_heq (by rfl) (by simp; apply Δ.ft'.symm)
-    simp [Ext.hom]
-  refine r.trans _ _ _ ?_
-  rw [← Quotient.out_eq Δ.obj, proj_spec]
-  refine (hom₀.mk_rep_betac _).trans _ _ _ ?_
-  simp [id₀]
-  convert PCtx.betac.refl _
-  rw [length_eq_add_one, Nat.add_one_sub_one]
-
-lemma eq_mk : Δ = mk Δ.head ⟨head_cons_wf _⟩ := by
-  ext; simp [mk]
-  rw [← Quotient.out_equiv_out]
-  constructor
-  rw [← head_cons_tail]
-  refine PCtx.betac.trans _ _ _ ?_ (Ctx.mk_rep_betac _).symm
-  simpa [PCtx.cons] using (tail_betac Δ).of_tail_of_eq
-
-def rec {Γ : QCtx S} {motive : Ext Γ → Sort w}
-  (h : ∀ (A : PTerm S) (h : Nonempty (A :: [Γ]ᵣ ⊢ ⬝)), motive (mk A h)) (Δ : Ext Γ):
-    motive Δ := by
-  rw [eq_mk Δ]
-  apply h
-
-def sectionMk₀ (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) : hom₀ Γ.out Δ.obj.out where
-  seq := a :: id [Γ]ᵣ
-  is := ⟨by
-    rw [← head_cons_tail]
-    apply isMor.cons
-    apply isMor_betac₂ (wf _) Δ.tail_betac.symm Δ.tail_wf (id_isMor _ (wf _))
-    all_goals try rw [simulSubst_id_of_cons_wf Δ.head_cons_wf]
-    apply (exists_of_cons' Δ.head_cons_wf).2
-    exact h
-    ⟩
-
-def sectionMk₁ (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) :
-    Γ ⟶ Δ.obj :=
-  ⟦Δ.sectionMk₀ a h⟧
-
-lemma sectionMk₁_comp {a : PTerm S} {h : [Γ]ᵣ ⊢ a : Δ.head} :
-    Δ.sectionMk₁ a h ≫ Δ.hom = 𝟙 _ := by
-  rw [← Quotient.out_equiv_out]
-  constructor
-  refine ((hom₀.mk_rep_betac _).trans _ _ _ ?_).trans _ _ _ (hom₀.mk_rep_betac _).symm
-  refine (pcomp_betac (hom₀.mk_rep_betac _) Δ.hom_betac).trans _ _ _ ?_
-  simp [sectionMk₀, QCtx.id₀]
-  rw [pcomp_id₀ (isTrunc.succ _ (isTrunc.zero _)) (by simp [id, id₀])]
-  exact PCtx.betac.refl _
-
-def SectionMk (a : PTerm S) (h : [Γ]ᵣ ⊢ a : Δ.head) :
-    Section Δ :=
-  Over.homMk (Δ.sectionMk₁ a h) Δ.sectionMk₁_comp
-
-variable {Δ} (a : Section Δ)
-
-lemma section_rep_not_nil : [a.left]ᵣ ≠ [] := by
-  apply List.ne_nil_of_length_eq_add_one
-  simpa [← a.left.is.length_eq] using Δ.gr'
-
---- maybe not a good name
-def _root_.ContextualCategory.Section.head : PTerm S :=
-  [a.left]ᵣ.head (section_rep_not_nil a)
-
-def _root_.ContextualCategory.Section.tail : PCtx S :=
-  [a.left]ᵣ.tail
-
-lemma _root_.ContextualCategory.Section.head_cons_tail :
-    a.head :: a.tail = [a.left]ᵣ := by
-  simp [Section.head, Section.tail]
-
-def _root_.ContextualCategory.Section.simulSubst_tail_betac :
-    simulSubst Δ.head 0 a.tail ≃β Δ.head := by
-  sorry -- this should be easy
-
-def _root_.ContextualCategory.Section.isMor_head_cons_tail :
-    isMor [Γ]ᵣ (Δ.head :: Δ.tail) (a.head :: a.tail) := by
-  simpa [a.head_cons_tail, Δ.head_cons_tail] using a.left.is
-
-def _root_.ContextualCategory.Section.typing :
-    [Γ]ᵣ ⊢  a.head : Δ.head := by
-  apply typing.conv _ _ _ _ _ a.simulSubst_tail_betac
-    a.isMor_head_cons_tail.typing_of_cons
-    (Δ.head_cons_wf).typing_of_cons
-
-end Ext-/
-end QCtx
-
-end TermModel

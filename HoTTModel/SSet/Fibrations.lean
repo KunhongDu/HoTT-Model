@@ -45,8 +45,6 @@ lemma of_isIso (p : X ⟶ Y) [IsIso p] : KanFibration p := ⟨by
 
 instance (p : X ⟶ Y) [IsIso p] : KanFibration p := of_isIso p
 
--- TODO : retract
-
 lemma IsPullback_snd {W X Y Z : SSet} {fst : W ⟶ X} {snd : W ⟶ Y}
   {f : X ⟶ Z} {g : Y ⟶ Z} (P : IsPullback fst snd f g) [KanFibration f] :
     KanFibration snd := ⟨by
@@ -126,7 +124,6 @@ lemma of_comp_isIso {X Y Z : SSet} (f : X ⟶ Y)
   rw [← Category.comp_id f, ← IsIso.hom_inv_id g, ← Category.assoc]
   apply comp_isIso
 
--- toDo, rw hg to Epi or sujective???
 lemma of_pullback_snd_KanFibration_of_surjective {W X Y Z : SSet} {fst : W ⟶ X} {snd : W ⟶ Y}
   {f : X ⟶ Z} {g : Y ⟶ Z} (P : IsPullback fst snd f g) [KanFibration snd]
   (hg : ∀ {k}, ∀ σ : Δ[k] ⟶ Z, ∃ σ' : Δ[k] ⟶ Y, σ' ≫ g = σ) :
@@ -144,48 +141,3 @@ lemma of_pullback_snd_KanFibration_of_surjective {W X Y Z : SSet} {fst : W ⟶ X
     apply isIso_comp
   rw [← pullback.rightCompIso_hom_comp_snd]
   apply isIso_comp
-/-
--- TODO : KanFib : to KanCpx
-
--- TrivialKanFibration aka Acyclic ...
--- avoid using weak equivalence / simplicial homotopy group
-
-class TrivialKanFibration (p : X ⟶ Y) : Prop where
-  lift : ∀ ⦃n : ℕ⦄ {f} {g} (D : CommSq f p (boundaryInclusion n) g), Nonempty D.LiftStruct
-
--- minimal fibration
-
-def ProdΔ0 : X ≅ prod X Δ[0] := prod_terminal_iso Δ0_is_terminal
-
-def inc₀ : X ⟶ prod X Δ[1] := ProdΔ0.hom ≫ (prod.lift prod.fst <| prod.snd ≫ standardSimplex.map (δ 1))
-
-def inc₁ : X ⟶ prod X Δ[1] := ProdΔ0.hom ≫ (prod.lift prod.fst <| prod.snd ≫ standardSimplex.map (δ 0))
-
-structure FibrewiseHomotopy {X Y : SSet} (p : X ⟶ Y) (e e' : Δ[n] ⟶ X) where
-  bound : (boundaryInclusion n) ≫ e = (boundaryInclusion n) ≫ e'
-  comp : e ≫ p = e' ≫ p
-  htp : prod Δ[n] Δ[1] ⟶ X
-  res₀ : inc₀ ≫ htp = e
-  res₁ : inc₁ ≫ htp = e'
-
-class KanFibration.Minimal (p : X ⟶ Y) [KanFibration p] : Prop where
-  eq_of : ∀ ⦃n : ℕ⦄ (e e' : Δ[n] ⟶ X), (FibrewiseHomotopy p e e') → e = e'
-
-
-
-open KanFibration
-
-structure FactorMiniTrivial (p : X ⟶ Y) [KanFibration p] where
-  mid : SSet
-  to_mid : X ⟶ mid
-  kan₁ : KanFibration to_mid
-  mini : Minimal to_mid
-  from_mid : mid ⟶ Y
-  tri : TrivialKanFibration from_mid
-
-class Cofibration (f : X ⟶ Y) : Prop :=
-  inj : ∀ ⦃n : ℕ⦄, Injective (f.app (op [n]))
-
-end SSet
-end
--/

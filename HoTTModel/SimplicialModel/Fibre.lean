@@ -803,7 +803,6 @@ lemma SmallFibre.fibre_fun_lt (hf : SmallFibre α f) {g g' : Over Y}
     #(∀ k, ∀ y : f.app k ⁻¹' range (x.app k),
       Fibre g.hom y.val → Fibre g'.hom y.val) < α := by
 
-  -- make them lemma
   have aux₁ {k} {y : ↑(f.app k ⁻¹' range (x.app k))} :
       #(↑(Fibre g.hom y.val) → ↑(Fibre g'.hom y.val)) < α := by
     rw [← Cardinal.power_def]
