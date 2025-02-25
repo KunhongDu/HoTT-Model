@@ -1,3 +1,23 @@
--- This module serves as the root of the `HoTTModel` library.
--- Import modules here that should be built as part of the library.
-import «HoTTModel».Basic
+import HoTTModel.ContextualCategory.Chain
+import HoTTModel.ContextualCategory.Contextual
+import HoTTModel.ContextualCategory.TypeStructures
+import HoTTModel.ContextualCategory.Universe
+import HoTTModel.DTT.PTS
+import HoTTModel.DTT.SynCat
+import HoTTModel.Lemmas.Cardinal
+import HoTTModel.Lemmas.CommaPresheaf
+import HoTTModel.Lemmas.HEq
+import HoTTModel.Lemmas.IsWellOrder
+import HoTTModel.Lemmas.Limits
+import HoTTModel.Lemmas.OrderOfEquiv
+import HoTTModel.Lemmas.YonedaULift
+import HoTTModel.LocallyCartesianClosed.Basic
+import HoTTModel.LocallyCartesianClosed.ChosenPullbacks
+import HoTTModel.LocallyCartesianClosed.PreservesColimit
+import HoTTModel.LocallyCartesianClosed.Presheaf
+import HoTTModel.SSet.Fibrations
+import HoTTModel.SSet.Lemmas
+import HoTTModel.SSet.Representables
+import HoTTModel.SimplicialModel.Fibre
+import HoTTModel.SimplicialModel.Model
+import HoTTModel.SimplicialModel.Universe
