@@ -46,7 +46,7 @@ lemma Over.IsInitial_hom_ext {X : α} {g h : Over X} (hg : IsInitial g)
   apply hg.hom_ext
 
 namespace LocallyCartesianClosed
-variable [CategoryTheory.Limits.HasPullbacks α] [LocallyCartesianClosed α] {X Y : α} (f : Y ⟶ X)
+variable [CategoryTheory.Limits.HasFiniteWidePullbacks α] [LocallyCartesianClosed α] {X Y : α} (f : Y ⟶ X)
 
 instance : PreservesColimitsOfSize (f*) :=
   (adj f).leftAdjointPreservesColimits
